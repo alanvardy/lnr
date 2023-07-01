@@ -2,13 +2,72 @@ extern crate clap;
 #[cfg(test)]
 extern crate matches;
 
+mod request;
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 const APP: &str = "lnr";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = "Alan Vardy <alan@vardy.cc>";
 const ABOUT: &str = "A tiny unofficial Linear client";
+
+const FETCH_IDS_DOC: &str = "
+        query {
+            viewer {
+                name
+                id
+                teamMemberships {
+                    nodes {
+                        team {
+                            name
+                            id
+                            projects {
+                                nodes {
+                                    name
+                                    id
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }";
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ViewerData {
+    data: Data,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Data {
+    viewer: Viewer,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Viewer {
+    id: String,
+    name: String,
+    team_memberships: TeamMemberships,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TeamMemberships {
+    nodes: Vec<TeamNode>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TeamNode {
+    team: Team,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Team {
+    name: String,
+    id: String,
+}
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
@@ -69,11 +128,16 @@ fn cmd() -> Command {
 
 #[cfg(not(tarpaulin_include))]
 fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
+    check_for_latest_version();
+    let token = std::env::var("LINEAR_TOKEN").expect("LINEAR_TOKEN environment variable not set");
+    dbg!(get_viewer(token).unwrap());
+
     Ok(String::from("ok"))
 }
 
 #[cfg(not(tarpaulin_include))]
 fn token_add(_matches: &ArgMatches) -> Result<String, String> {
+    check_for_latest_version();
     Ok(String::from("ok"))
 }
 
@@ -131,7 +195,36 @@ fn project_arg() -> Arg {
         .value_name("PROJECT NAME")
         .help("The project into which the task will be added")
 }
+// TODO move this to viewer.rs
+fn get_viewer(token: String) -> Result<Viewer, String> {
+    let json = request::gql(token, FETCH_IDS_DOC, HashMap::new())?;
 
+    let result: Result<ViewerData, _> = serde_json::from_str(&json);
+    match result {
+        Ok(body) => Ok(body.data.viewer),
+        Err(err) => Err(format!("Could not parse response for item: {err:?}")),
+    }
+}
+
+fn check_for_latest_version() {
+    match request::get_latest_version() {
+        Ok(version) if version.as_str() != VERSION => {
+            println!(
+                "Latest {} version is {}, found {}.\nRun {} to update if you installed with Cargo",
+                APP,
+                version,
+                VERSION,
+                format!("cargo install {APP} --force").bright_cyan()
+            );
+        }
+        Ok(_) => (),
+        Err(err) => println!(
+            "{}, {:?}",
+            format!("Could not fetch {APP} version from Cargo.io").red(),
+            err
+        ),
+    };
+}
 #[test]
 fn verify_cmd() {
     cmd().debug_assert();
