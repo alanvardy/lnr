@@ -19,6 +19,10 @@ fn main() {
             Some(("create", m)) => issue_create(m),
             _ => unreachable!(),
         },
+        Some(("token", issue_matches)) => match issue_matches.subcommand() {
+            Some(("add", m)) => token_add(m),
+            _ => unreachable!(),
+        },
         _ => unreachable!(),
     };
 
@@ -41,19 +45,35 @@ fn cmd() -> Command {
         .about(ABOUT)
         .arg_required_else_help(true)
         .propagate_version(true)
-        .subcommands([Command::new("issue")
-            .arg_required_else_help(true)
-            .propagate_version(true)
-            .subcommand_required(true)
-            .subcommands([Command::new("create")
-                .about("Create a new task")
-                .arg(config_arg())
-                .arg(content_arg())
-                .arg(project_arg())])])
+        .subcommands([
+            Command::new("issue")
+                .arg_required_else_help(true)
+                .propagate_version(true)
+                .subcommand_required(true)
+                .subcommands([Command::new("create")
+                    .about("Create a new task")
+                    .arg(config_arg())
+                    .arg(content_arg())
+                    .arg(project_arg())]),
+            Command::new("token")
+                .arg_required_else_help(true)
+                .propagate_version(true)
+                .subcommand_required(true)
+                .subcommands([Command::new("add")
+                    .about("Add a token to config")
+                    .arg(config_arg())
+                    .arg(name_arg())
+                    .arg(token_arg())]),
+        ])
 }
 
 #[cfg(not(tarpaulin_include))]
 fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
+    Ok(String::from("ok"))
+}
+
+#[cfg(not(tarpaulin_include))]
+fn token_add(_matches: &ArgMatches) -> Result<String, String> {
     Ok(String::from("ok"))
 }
 
@@ -77,6 +97,28 @@ fn content_arg() -> Arg {
         .required(false)
         .value_name("TASK TEXT")
         .help("Content for task")
+}
+
+#[cfg(not(tarpaulin_include))]
+fn name_arg() -> Arg {
+    Arg::new("name")
+        .short('n')
+        .long("name")
+        .num_args(1)
+        .required(false)
+        .value_name("ORG NAME")
+        .help("Name for organization token")
+}
+
+#[cfg(not(tarpaulin_include))]
+fn token_arg() -> Arg {
+    Arg::new("token")
+        .short('t')
+        .long("token")
+        .num_args(1)
+        .required(false)
+        .value_name("TOKEN")
+        .help("Token for organization")
 }
 
 #[cfg(not(tarpaulin_include))]
