@@ -2,72 +2,18 @@ extern crate clap;
 #[cfg(test)]
 extern crate matches;
 
+mod input;
+mod issue;
 mod request;
+mod viewer;
+
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 const APP: &str = "lnr";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = "Alan Vardy <alan@vardy.cc>";
 const ABOUT: &str = "A tiny unofficial Linear client";
-
-const FETCH_IDS_DOC: &str = "
-        query {
-            viewer {
-                name
-                id
-                teamMemberships {
-                    nodes {
-                        team {
-                            name
-                            id
-                            projects {
-                                nodes {
-                                    name
-                                    id
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }";
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ViewerData {
-    data: Data,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Data {
-    viewer: Viewer,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct Viewer {
-    id: String,
-    name: String,
-    team_memberships: TeamMemberships,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TeamMemberships {
-    nodes: Vec<TeamNode>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TeamNode {
-    team: Team,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Team {
-    name: String,
-    id: String,
-}
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
@@ -130,9 +76,21 @@ fn cmd() -> Command {
 fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
     check_for_latest_version();
     let token = std::env::var("LINEAR_TOKEN").expect("LINEAR_TOKEN environment variable not set");
-    dbg!(get_viewer(token).unwrap());
+    let viewer = viewer::get_viewer(&token)?;
+    let team_names = viewer::team_names(&viewer)?;
+    let team_name = input::select("Select team", team_names, Some(0))?;
 
-    Ok(String::from("ok"))
+    let team = viewer::team(&viewer, team_name)?;
+
+    let mut project_names = viewer::project_names(&team)?;
+    project_names.push(String::from("None"));
+    let project_name = input::select("Select project", project_names, Some(0))?;
+    let project = viewer::project(&team, project_name)?;
+    let title = input::string("Enter title", None)?;
+    let description = input::editor("Enter description", None)?;
+    let project_id = project.map(|p| p.id);
+
+    issue::create(token, title, description, team.id, project_id, viewer.id)
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -195,17 +153,6 @@ fn project_arg() -> Arg {
         .value_name("PROJECT NAME")
         .help("The project into which the task will be added")
 }
-// TODO move this to viewer.rs
-fn get_viewer(token: String) -> Result<Viewer, String> {
-    let json = request::gql(token, FETCH_IDS_DOC, HashMap::new())?;
-
-    let result: Result<ViewerData, _> = serde_json::from_str(&json);
-    match result {
-        Ok(body) => Ok(body.data.viewer),
-        Err(err) => Err(format!("Could not parse response for item: {err:?}")),
-    }
-}
-
 fn check_for_latest_version() {
     match request::get_latest_version() {
         Ok(version) if version.as_str() != VERSION => {

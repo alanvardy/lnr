@@ -21,7 +21,7 @@ struct Version {
 }
 
 pub fn gql(
-    token: String,
+    token: &String,
     query: &str,
     variables: HashMap<String, String>,
 ) -> Result<String, String> {

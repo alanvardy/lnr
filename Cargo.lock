@@ -685,6 +685,7 @@ dependencies = [
  "dyn-clone",
  "lazy_static",
  "newline-converter",
+ "tempfile",
  "thiserror",
  "unicode-segmentation",
  "unicode-width",
