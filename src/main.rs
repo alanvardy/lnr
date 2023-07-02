@@ -2,9 +2,12 @@ extern crate clap;
 #[cfg(test)]
 extern crate matches;
 
+mod color;
+mod config;
 mod input;
 mod issue;
 mod request;
+mod test;
 mod viewer;
 
 use clap::{Arg, ArgMatches, Command};
@@ -24,8 +27,8 @@ fn main() {
             Some(("create", m)) => issue_create(m),
             _ => unreachable!(),
         },
-        Some(("token", issue_matches)) => match issue_matches.subcommand() {
-            Some(("add", m)) => token_add(m),
+        Some(("org", issue_matches)) => match issue_matches.subcommand() {
+            Some(("add", m)) => org_add(m),
             _ => unreachable!(),
         },
         _ => unreachable!(),
@@ -60,7 +63,7 @@ fn cmd() -> Command {
                     .arg(config_arg())
                     .arg(content_arg())
                     .arg(project_arg())]),
-            Command::new("token")
+            Command::new("org")
                 .arg_required_else_help(true)
                 .propagate_version(true)
                 .subcommand_required(true)
@@ -94,7 +97,7 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn token_add(_matches: &ArgMatches) -> Result<String, String> {
+fn org_add(_matches: &ArgMatches) -> Result<String, String> {
     check_for_latest_version();
     Ok(String::from("ok"))
 }
