@@ -59,12 +59,25 @@ impl Config {
         })
     }
 
-    pub fn reload(&self) -> Result<Self, String> {
-        Config::load(&self.path)
+    pub fn remove_organization(&mut self, name: &String) {
+        self.organizations.remove(name);
     }
 
-    pub fn remove_organization(&mut self, name: &str) {
-        self.organizations.remove(name);
+    pub fn organization_names(&self) -> Vec<String> {
+        self.organizations.clone().into_keys().collect()
+    }
+
+    pub fn token(&self, organization_name: &String) -> Result<String, String> {
+        let maybe_org = self
+            .organizations
+            .clone()
+            .into_iter()
+            .find(|(k, _v)| k == organization_name);
+
+        match maybe_org {
+            Some((_, token)) => Ok(token),
+            None => Err("Organization not found".to_string()),
+        }
     }
 
     pub fn save(&mut self) -> std::result::Result<String, String> {
@@ -122,22 +135,6 @@ mod tests {
                 ..self
             }
         }
-
-        /// Mock out the string response
-        pub fn mock_string(self, string: &str) -> Config {
-            Config {
-                mock_string: Some(string.to_string()),
-                ..self
-            }
-        }
-
-        /// Mock out the select response, setting the index of the response
-        pub fn mock_select(self, index: usize) -> Config {
-            Config {
-                mock_select: Some(index),
-                ..self
-            }
-        }
     }
 
     use matches::assert_matches;
@@ -151,19 +148,6 @@ mod tests {
     fn new_should_generate_config() {
         let config = Config::new().unwrap();
         assert_eq!(config.organizations, HashMap::new());
-    }
-
-    #[test]
-    fn reload_config_should_work() {
-        let config = test::fixtures::config();
-        let mut config = config.create().expect("Failed to create test config");
-        config.add_organization("testproj".to_string(), "sometoken".to_string());
-        assert!(!&config.organizations.is_empty());
-
-        let reloaded_config = config.reload().expect("Failed to reload config");
-        assert!(reloaded_config.organizations.is_empty());
-
-        delete_config(&reloaded_config.path);
     }
 
     #[test]
@@ -221,7 +205,7 @@ mod tests {
                 mock_select: None,
             }
         );
-        config_with_two_projects.remove_organization("test");
+        config_with_two_projects.remove_organization(&String::from("test"));
         let mut organizations: HashMap<String, String> = HashMap::new();
         organizations.insert(String::from("test2"), "token2".to_string());
         assert_eq!(
