@@ -26,6 +26,7 @@ fn main() {
     let result = match matches.subcommand() {
         Some(("issue", issue_matches)) => match issue_matches.subcommand() {
             Some(("create", m)) => issue_create(m),
+            Some(("view", m)) => issue_view(m),
             _ => unreachable!(),
         },
         Some(("org", issue_matches)) => match issue_matches.subcommand() {
@@ -60,9 +61,14 @@ fn cmd() -> Command {
                 .arg_required_else_help(true)
                 .propagate_version(true)
                 .subcommand_required(true)
-                .subcommands([Command::new("create")
-                    .about("Create a new issue")
-                    .arg(config_arg())]),
+                .subcommands([
+                    Command::new("create")
+                        .about("Create a new issue")
+                        .arg(config_arg()),
+                    Command::new("view")
+                        .about("View the issue for current branch")
+                        .arg(config_arg()),
+                ]),
             Command::new("org")
                 .arg_required_else_help(true)
                 .propagate_version(true)
@@ -86,7 +92,7 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
     check_for_latest_version();
     let config = config::get_or_create(None)?;
     let token = get_token(&config)?;
-    let viewer = viewer::get_viewer(&token)?;
+    let viewer = viewer::get_viewer(&config, &token)?;
 
     let team = viewer::team(&viewer)?;
     let mut project_names = viewer::project_names(&team)?;
@@ -97,7 +103,39 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
     let description = input::editor("Enter description", None)?;
     let project_id = project.map(|p| p.id);
 
-    issue::create(token, title, description, team.id, project_id, viewer.id)
+    issue::create(
+        &config,
+        token,
+        title,
+        description,
+        team.id,
+        project_id,
+        viewer.id,
+    )
+}
+
+#[cfg(not(tarpaulin_include))]
+fn issue_view(_matches: &ArgMatches) -> Result<String, String> {
+    check_for_latest_version();
+    let config = config::get_or_create(None)?;
+    let token = get_token(&config)?;
+
+    let branch = get_git_branch()?;
+    issue::view(&config, &token, branch)
+}
+
+fn get_git_branch() -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .arg("branch")
+        .arg("--show-current")
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        String::from_utf8(output.stdout).map_err(|e| e.to_string())
+    } else {
+        Err(String::from_utf8(output.stderr)).unwrap()
+    }
 }
 
 fn get_token(config: &Config) -> Result<String, String> {
