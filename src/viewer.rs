@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::Config;
 use crate::input;
 use crate::request;
 
@@ -73,8 +74,8 @@ pub struct Project {
     pub id: String,
 }
 
-pub fn get_viewer(token: &String) -> Result<Viewer, String> {
-    let json = request::gql(token, FETCH_IDS_DOC, HashMap::new())?;
+pub fn get_viewer(config: &Config, token: &String) -> Result<Viewer, String> {
+    let json = request::gql(config, token, FETCH_IDS_DOC, HashMap::new())?;
 
     let result: Result<ViewerData, _> = serde_json::from_str(&json);
     match result {

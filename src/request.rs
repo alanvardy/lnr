@@ -4,11 +4,19 @@ use reqwest::header::CONTENT_TYPE;
 use reqwest::header::USER_AGENT;
 use serde::Deserialize;
 use serde_json::json;
+use spinners::Spinner;
+use spinners::Spinners;
 use std::collections::HashMap;
+use std::env;
+
+use crate::config::Config;
 
 const LINEAR_URL: &str = "https://api.linear.app/graphql";
 const CARGO_URL: &str = "https://crates.io/api";
 const VERSIONS_URL: &str = "/v1/crates/linear_templater/versions";
+
+const SPINNER: Spinners = Spinners::Dots4;
+const MESSAGE: &str = "Querying API";
 
 #[derive(Deserialize)]
 struct CargoResponse {
@@ -21,6 +29,7 @@ struct Version {
 }
 
 pub fn gql(
+    config: &Config,
     token: &String,
     query: &str,
     variables: HashMap<String, String>,
@@ -29,6 +38,7 @@ pub fn gql(
 
     let body = json!({"query": query, "variables": variables});
 
+    let spinner = maybe_start_spinner(config);
     let response = Client::new()
         .post(LINEAR_URL)
         .header(CONTENT_TYPE, "application/json")
@@ -36,6 +46,8 @@ pub fn gql(
         .json(&body)
         .send()
         .or(Err("Did not get response from server"))?;
+
+    maybe_stop_spinner(spinner);
 
     if response.status().is_success() {
         Ok(response.text().or(Err("Could not read response text"))?)
@@ -62,4 +74,24 @@ pub fn get_latest_version() -> Result<String, String> {
     } else {
         Err(format!("Error: {:#?}", response.text()))
     }
+}
+
+fn maybe_start_spinner(config: &Config) -> Option<Spinner> {
+    match env::var("DISABLE_SPINNER") {
+        Ok(_) => None,
+        _ => {
+            if let Some(true) = config.spinners {
+                let sp = Spinner::new(SPINNER, MESSAGE.into());
+                Some(sp)
+            } else {
+                None
+            }
+        }
+    }
+}
+fn maybe_stop_spinner(spinner: Option<Spinner>) {
+    if let Some(mut sp) = spinner {
+        sp.stop();
+        print!("\x1b[2K\r");
+    };
 }

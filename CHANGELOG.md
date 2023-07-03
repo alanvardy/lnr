@@ -7,3 +7,4 @@
 - Add `org add`
 - Add `org remove`
 - Add badges to `README.md`
+- Add `issue view`
