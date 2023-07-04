@@ -27,6 +27,7 @@ fn main() {
         Some(("issue", issue_matches)) => match issue_matches.subcommand() {
             Some(("create", m)) => issue_create(m),
             Some(("view", m)) => issue_view(m),
+            Some(("edit", m)) => issue_edit(m),
             _ => unreachable!(),
         },
         Some(("org", issue_matches)) => match issue_matches.subcommand() {
@@ -65,6 +66,9 @@ fn cmd() -> Command {
                     Command::new("create")
                         .about("Create a new issue")
                         .arg(config_arg()),
+                    Command::new("edit")
+                        .about("Edit the issue for current branch")
+                        .arg(config_arg()),
                     Command::new("view")
                         .about("View the issue for current branch")
                         .arg(config_arg()),
@@ -100,7 +104,7 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
     let project_name = input::select("Select project", project_names, None)?;
     let project = viewer::project(&team, project_name)?;
     let title = input::string("Enter title", None)?;
-    let description = input::editor("Enter description", None)?;
+    let description = input::editor("Enter description", "", None)?;
     let project_id = project.map(|p| p.id);
 
     issue::create(
@@ -124,6 +128,16 @@ fn issue_view(_matches: &ArgMatches) -> Result<String, String> {
     issue::view(&config, &token, branch)
 }
 
+#[cfg(not(tarpaulin_include))]
+fn issue_edit(_matches: &ArgMatches) -> Result<String, String> {
+    check_for_latest_version();
+    let config = config::get_or_create(None)?;
+    let token = get_token(&config)?;
+
+    let branch = get_git_branch()?;
+    issue::edit(&config, &token, branch)
+}
+
 fn get_git_branch() -> Result<String, String> {
     let output = std::process::Command::new("git")
         .arg("branch")
@@ -132,7 +146,9 @@ fn get_git_branch() -> Result<String, String> {
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
-        String::from_utf8(output.stdout).map_err(|e| e.to_string())
+        String::from_utf8(output.stdout)
+            .map(|s| s.trim().to_string())
+            .map_err(|e| e.to_string())
     } else {
         Err(String::from_utf8(output.stderr)).unwrap()
     }

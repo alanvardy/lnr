@@ -16,7 +16,11 @@ pub fn string(desc: &str, mock_string: Option<String>) -> Result<String, String>
 }
 
 /// Get large amount of text from user using editor
-pub fn editor(desc: &str, mock_string: Option<String>) -> Result<String, String> {
+pub fn editor(
+    desc: &str,
+    default_text: &str,
+    mock_string: Option<String>,
+) -> Result<String, String> {
     if cfg!(test) {
         if let Some(string) = mock_string {
             Ok(string)
@@ -24,7 +28,10 @@ pub fn editor(desc: &str, mock_string: Option<String>) -> Result<String, String>
             panic!("Must set mock_string in config")
         }
     } else {
-        Editor::new(desc).prompt().map_err(|e| e.to_string())
+        Editor::new(desc)
+            .with_predefined_text(default_text)
+            .prompt()
+            .map_err(|e| e.to_string())
     }
 }
 
