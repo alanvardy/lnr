@@ -3,7 +3,7 @@ use reqwest::header::AUTHORIZATION;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::header::USER_AGENT;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use spinners::Spinner;
 use spinners::Spinners;
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ pub fn gql(
     config: &Config,
     token: &String,
     query: &str,
-    variables: HashMap<String, String>,
+    variables: HashMap<String, Value>,
 ) -> Result<String, String> {
     let authorization: &str = &format!("Bearer {token}");
 
