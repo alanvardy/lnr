@@ -22,6 +22,8 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                 ) {
                     issue {
                         id
+                        title
+                        description
                         url
                     }
                     }
