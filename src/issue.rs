@@ -181,7 +181,7 @@ pub fn edit(config: &Config, token: &String, branch: String) -> Result<String, S
 
     let response = request::gql(config, token, ISSUE_UPDATE_DOC, gql_variables)?;
     let issue = issue_update_response(response)?;
-    Ok(issue.format())
+    Ok(issue.url)
 }
 
 /// Get the id from an issue response, needed for parent issues and terminal output

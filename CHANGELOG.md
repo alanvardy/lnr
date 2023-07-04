@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Only show URL when issue is updated
+
 ## 2023-07-04 v0.1.1
 
 - Fix website link in `Cargo.toml`
