@@ -30,6 +30,7 @@ pub fn editor(
     } else {
         Editor::new(desc)
             .with_predefined_text(default_text)
+            .with_file_extension(".md")
             .prompt()
             .map_err(|e| e.to_string())
     }

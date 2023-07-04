@@ -1,17 +1,15 @@
 [package]
 name = "lnr"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alan Vardy <alan@vardy.cc>"]
 edition = "2021"
 license = "MIT"
 description = "A tiny unofficial Linear client"
 readme = "README.md"
-homepage = "https://github.com/alanvardy/tod"
-repository = "https://github.com/alanvardy/tod"
+homepage = "https://github.com/alanvardy/lnr"
+repository = "https://github.com/alanvardy/lnr"
 keywords = ["cli", "linear", "client", "tickets"]
 categories = ["command-line-utilities"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde_json = "1"
