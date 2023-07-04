@@ -4,6 +4,7 @@ extern crate matches;
 
 mod color;
 mod config;
+mod git;
 mod input;
 mod issue;
 mod request;
@@ -124,7 +125,7 @@ fn issue_view(_matches: &ArgMatches) -> Result<String, String> {
     let config = config::get_or_create(None)?;
     let token = get_token(&config)?;
 
-    let branch = get_git_branch()?;
+    let branch = git::get_branch()?;
     issue::view(&config, &token, branch)
 }
 
@@ -134,24 +135,8 @@ fn issue_edit(_matches: &ArgMatches) -> Result<String, String> {
     let config = config::get_or_create(None)?;
     let token = get_token(&config)?;
 
-    let branch = get_git_branch()?;
+    let branch = git::get_branch()?;
     issue::edit(&config, &token, branch)
-}
-
-fn get_git_branch() -> Result<String, String> {
-    let output = std::process::Command::new("git")
-        .arg("branch")
-        .arg("--show-current")
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    if output.status.success() {
-        String::from_utf8(output.stdout)
-            .map(|s| s.trim().to_string())
-            .map_err(|e| e.to_string())
-    } else {
-        Err(String::from_utf8(output.stderr)).unwrap()
-    }
 }
 
 fn get_token(config: &Config) -> Result<String, String> {
