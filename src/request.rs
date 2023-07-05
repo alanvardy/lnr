@@ -13,7 +13,7 @@ use crate::config::Config;
 
 const LINEAR_URL: &str = "https://api.linear.app/graphql";
 const CARGO_URL: &str = "https://crates.io/api";
-const VERSIONS_URL: &str = "/v1/crates/linear_templater/versions";
+const VERSIONS_URL: &str = "/v1/crates/lnr/versions";
 
 const SPINNER: Spinners = Spinners::Dots4;
 const MESSAGE: &str = "Querying API";

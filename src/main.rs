@@ -34,6 +34,7 @@ fn main() {
         Some(("org", issue_matches)) => match issue_matches.subcommand() {
             Some(("add", m)) => organization_add(m),
             Some(("remove", m)) => organization_remove(m),
+            Some(("list", m)) => organization_list(m),
             _ => unreachable!(),
         },
         _ => unreachable!(),
@@ -88,6 +89,9 @@ fn cmd() -> Command {
                         .about("Remove an organization and token from config")
                         .arg(config_arg())
                         .arg(name_arg()),
+                    Command::new("list")
+                        .about("List organizations and tokens in config")
+                        .arg(config_arg()),
                 ]),
         ])
 }
@@ -161,6 +165,27 @@ fn organization_add(_matches: &ArgMatches) -> Result<String, String> {
     let token = input::string("Input organization token", None)?;
     config.add_organization(name, token);
     config.save()
+}
+
+#[cfg(not(tarpaulin_include))]
+fn organization_list(_matches: &ArgMatches) -> Result<String, String> {
+    check_for_latest_version();
+
+    let config = config::get_or_create(None)?;
+    let orgs = config
+        .organizations
+        .into_iter()
+        .map(|(k, v)| format!("- {k}: {v}"))
+        .collect::<Vec<String>>();
+
+    if orgs.is_empty() {
+        Ok("No organizations in config".to_string())
+    } else {
+        let title = color::green_string("Organizations");
+        let orgs = orgs.join("\n");
+
+        Ok(format!("{title}\n\n{orgs}"))
+    }
 }
 
 #[cfg(not(tarpaulin_include))]

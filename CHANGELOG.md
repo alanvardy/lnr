@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Only show URL when issue is updated
+- Add `org list`
+- Fix VERSION_URL
 
 ## 2023-07-04 v0.1.1
 
