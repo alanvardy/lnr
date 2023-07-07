@@ -18,6 +18,34 @@ Create a new issue
 lnr issue create
 ```
 
+View issue (linked to current branch)
+
+```bash
+lnr issue view
+```
+
+
+Edit issue (linked to current branch)
+
+```bash
+lnr issue edit
+```
+
+## Installation
+
+[Install Rust](https://www.rust-lang.org/tools/install)
+
+```bash
+# Linux and MacOS
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+Install `lnr`
+
+```bash
+cargo install lnr
+```
+
 ## Contributing
 
 Contributions are welcome, be sure to open up an issue first!
