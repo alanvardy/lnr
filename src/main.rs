@@ -14,6 +14,7 @@ mod viewer;
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
 use config::Config;
+use viewer::{Project, Team};
 
 const APP: &str = "lnr";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -104,13 +105,9 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
     let viewer = viewer::get_viewer(&config, &token)?;
 
     let team = viewer::team(&viewer)?;
-    let mut project_names = viewer::project_names(&team)?;
-    project_names.push(String::from("None"));
-    let project_name = input::select("Select project", project_names, None)?;
-    let project = viewer::project(&team, project_name)?;
+    let project_id = get_project(&team)?.map(|p| p.id);
     let title = input::string("Enter title", None)?;
     let description = input::editor("Enter description", "", None)?;
-    let project_id = project.map(|p| p.id);
 
     issue::create(
         &config,
@@ -143,8 +140,11 @@ fn issue_edit(_matches: &ArgMatches) -> Result<String, String> {
     issue::edit(&config, &token, branch)
 }
 
+/// Don't bother asking for organization if there is only one
 fn get_token(config: &Config) -> Result<String, String> {
-    let org_names = config.organization_names();
+    let mut org_names = config.organization_names();
+    org_names.sort();
+
     if org_names.is_empty() {
         let command = color::cyan_string("org add");
         Err(format!("Add an organization with {}", command))
@@ -154,6 +154,14 @@ fn get_token(config: &Config) -> Result<String, String> {
         let org_name = input::select("Select an organization", org_names, None)?;
         config.token(&org_name)
     }
+}
+
+fn get_project(team: &Team) -> Result<Option<Project>, String> {
+    let mut project_names = viewer::project_names(team)?;
+    project_names.sort();
+    project_names.insert(0, String::from("None"));
+    let project_name = input::select("Select project", project_names, None)?;
+    viewer::project(team, project_name)
 }
 
 #[cfg(not(tarpaulin_include))]

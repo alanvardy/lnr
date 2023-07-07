@@ -122,7 +122,9 @@ pub fn team_by_name(viewer: &Viewer, team_name: &String) -> Result<Team, String>
 }
 
 pub fn team(viewer: &Viewer) -> Result<Team, String> {
-    let team_names = team_names(viewer)?;
+    let mut team_names = team_names(viewer)?;
+
+    team_names.sort();
 
     if team_names.is_empty() {
         Err("No teams found".to_string())
