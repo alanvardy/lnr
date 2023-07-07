@@ -5,6 +5,8 @@
 - Only show URL when issue is updated
 - Add `org list`
 - Fix VERSION_URL
+- Put `None` first when selecting project
+- Sort select lists alphabetically
 
 ## 2023-07-04 v0.1.1
 
