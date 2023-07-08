@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `issue list`
+
 ## 2023-07-07 v0.1.2
 
 - Only show URL when issue is updated

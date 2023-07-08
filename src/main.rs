@@ -13,7 +13,6 @@ mod viewer;
 
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
-use config::Config;
 use viewer::{Project, Team};
 
 const APP: &str = "lnr";
@@ -30,6 +29,7 @@ fn main() {
             Some(("create", m)) => issue_create(m),
             Some(("view", m)) => issue_view(m),
             Some(("edit", m)) => issue_edit(m),
+            Some(("list", m)) => issue_list(m),
             _ => unreachable!(),
         },
         Some(("org", issue_matches)) => match issue_matches.subcommand() {
@@ -72,6 +72,9 @@ fn cmd() -> Command {
                     Command::new("edit")
                         .about("Edit the issue for current branch")
                         .arg(config_arg()),
+                    Command::new("list")
+                        .about("List issues, maximum of 50. Returns issues assigned to user in team and project")
+                        .arg(config_arg()),
                     Command::new("view")
                         .about("View the issue for current branch")
                         .arg(config_arg()),
@@ -101,7 +104,7 @@ fn cmd() -> Command {
 fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
     check_for_latest_version();
     let config = config::get_or_create(None)?;
-    let token = get_token(&config)?;
+    let token = config::get_token(&config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
 
     let team = viewer::team(&viewer)?;
@@ -124,7 +127,7 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
 fn issue_view(_matches: &ArgMatches) -> Result<String, String> {
     check_for_latest_version();
     let config = config::get_or_create(None)?;
-    let token = get_token(&config)?;
+    let token = config::get_token(&config)?;
 
     let branch = git::get_branch()?;
     issue::view(&config, &token, branch)
@@ -134,26 +137,24 @@ fn issue_view(_matches: &ArgMatches) -> Result<String, String> {
 fn issue_edit(_matches: &ArgMatches) -> Result<String, String> {
     check_for_latest_version();
     let config = config::get_or_create(None)?;
-    let token = get_token(&config)?;
+    let token = config::get_token(&config)?;
 
     let branch = git::get_branch()?;
     issue::edit(&config, &token, branch)
 }
 
-/// Don't bother asking for organization if there is only one
-fn get_token(config: &Config) -> Result<String, String> {
-    let mut org_names = config.organization_names();
-    org_names.sort();
+#[cfg(not(tarpaulin_include))]
+fn issue_list(_matches: &ArgMatches) -> Result<String, String> {
+    check_for_latest_version();
+    let config = config::get_or_create(None)?;
+    let token = config::get_token(&config)?;
 
-    if org_names.is_empty() {
-        let command = color::cyan_string("org add");
-        Err(format!("Add an organization with {}", command))
-    } else if org_names.len() == 1 {
-        config.token(org_names.first().unwrap())
-    } else {
-        let org_name = input::select("Select an organization", org_names, None)?;
-        config.token(&org_name)
-    }
+    let viewer = viewer::get_viewer(&config, &token)?;
+
+    let team = viewer::team(&viewer)?;
+    let project_id = get_project(&team)?.map(|p| p.id);
+
+    issue::list(&config, &token, Some(viewer.id), Some(team.id), project_id)
 }
 
 fn get_project(team: &Team) -> Result<Option<Project>, String> {
