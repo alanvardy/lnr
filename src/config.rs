@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 
-use crate::color;
+use crate::{color, input};
 
 /// App configuration, serialized as json in $XDG_CONFIG_HOME/lnr.cfg
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
@@ -94,6 +94,22 @@ impl Config {
             .or(Err("Could not write to file"))?;
 
         Ok(color::green_string("✓"))
+    }
+}
+
+/// Don't bother asking for organization if there is only one
+pub fn get_token(config: &Config) -> Result<String, String> {
+    let mut org_names = config.organization_names();
+    org_names.sort();
+
+    if org_names.is_empty() {
+        let command = color::cyan_string("org add");
+        Err(format!("Add an organization with {}", command))
+    } else if org_names.len() == 1 {
+        config.token(org_names.first().unwrap())
+    } else {
+        let org_name = input::select("Select an organization", org_names, None)?;
+        config.token(&org_name)
     }
 }
 

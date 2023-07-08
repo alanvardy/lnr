@@ -22,6 +22,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                 ) {
                     issue {
                         id
+                        identifier
                         title
                         description
                         url
@@ -40,11 +41,29 @@ const ISSUE_UPDATE_DOC: &str = "mutation (
                 ) {
                     issue {
                         id
+                        identifier
                         title
                         description
                         url
                     }
                     }
+                }
+                ";
+
+const ISSUE_LIST_DOC: &str = "query (
+                    $filter: IssueFilter,
+                ) {
+                issues (
+                    filter: $filter
+                ) {
+                        nodes {
+                            id
+                            identifier
+                            title
+                            description
+                            url
+                    }
+                  }
                 }
                 ";
 
@@ -55,12 +74,29 @@ const ISSUE_VIEW_DOC: &str = "query (
                     branchName: $branchName
                 )   {
                         id
+                        identifier
                         url
                         title
                         description
                     }
                 }
                 ";
+
+// ISSUE LIST
+#[derive(Deserialize, Serialize, Debug)]
+struct IssueListResponse {
+    data: Option<IssueListData>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct IssueListData {
+    issues: IssueListIssues,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct IssueListIssues {
+    nodes: Vec<Issue>,
+}
 
 // ISSUE VIEW
 #[derive(Deserialize, Serialize, Debug)]
@@ -111,17 +147,27 @@ struct IssueUpdate {
 #[derive(Deserialize, Serialize, Debug)]
 struct Issue {
     id: String,
+    identifier: String,
     url: String,
     title: String,
     description: Option<String>,
 }
 
+enum Format {
+    View,
+    List,
+}
+
 impl Issue {
-    fn format(&self) -> String {
+    fn format(&self, format: Format) -> String {
         let title = color::blue_string(&self.title);
+        let identifier = self.identifier.clone();
         let description = &self.description.clone().unwrap_or_default();
 
-        format!("{title}\n\n{description}")
+        match format {
+            Format::View => format!("{title}\n\n{description}"),
+            Format::List => format!("- {identifier} | {title}"),
+        }
     }
 }
 
@@ -149,6 +195,52 @@ pub fn create(
     Ok(url)
 }
 
+pub fn list(
+    config: &Config,
+    token: &String,
+    assignee_id: Option<String>,
+    team_id: Option<String>,
+    project_id: Option<String>,
+) -> Result<String, String> {
+    let mut filter = HashMap::new();
+    if let Some(project_id) = project_id {
+        let mut id = HashMap::new();
+        id.insert("eq".to_string(), Value::String(project_id));
+        let mut project = HashMap::new();
+        project.insert("id".to_string(), id);
+        filter.insert("project".to_string(), project);
+    }
+
+    if let Some(assignee_id) = assignee_id {
+        let mut id = HashMap::new();
+        id.insert("eq".to_string(), Value::String(assignee_id));
+        let mut project = HashMap::new();
+        project.insert("id".to_string(), id);
+        filter.insert("assignee".to_string(), project);
+    }
+
+    if let Some(team_id) = team_id {
+        let mut id = HashMap::new();
+        id.insert("eq".to_string(), Value::String(team_id));
+        let mut project = HashMap::new();
+        project.insert("id".to_string(), id);
+        filter.insert("team".to_string(), project);
+    }
+
+    let mut gql_variables = HashMap::new();
+    gql_variables.insert("filter".to_string(), json!(filter));
+
+    let response = request::gql(config, token, ISSUE_LIST_DOC, gql_variables)?;
+    let issues_text = issue_list_response(response).map(|i| {
+        i.into_iter()
+            .map(|j| j.format(Format::List))
+            .collect::<Vec<String>>()
+            .join("\n")
+    })?;
+    let title = color::green_string("Issues");
+    Ok(format!("\n{title}\n\n{issues_text}"))
+}
+
 pub fn view(config: &Config, token: &String, branch: String) -> Result<String, String> {
     let mut gql_variables = HashMap::new();
     gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
@@ -156,7 +248,7 @@ pub fn view(config: &Config, token: &String, branch: String) -> Result<String, S
     let response = request::gql(config, token, ISSUE_VIEW_DOC, gql_variables)?;
     let issue = issue_view_response(response, &branch)?;
 
-    Ok(issue.format())
+    Ok(issue.format(Format::View))
 }
 
 pub fn edit(config: &Config, token: &String, branch: String) -> Result<String, String> {
@@ -220,6 +312,26 @@ fn issue_view_response(response: String, branch: &String) -> Result<Issue, Strin
                 issueVcsBranchSearch: None,
             }),
         }) => Err(format!("Branch {branch} not found")),
+        err => Err(format!(
+            "Could not parse response for issue:
+            ---
+            {err:?}
+            ---
+            {response:?}"
+        )),
+    }
+}
+
+fn issue_list_response(response: String) -> Result<Vec<Issue>, String> {
+    let data: Result<IssueListResponse, _> = serde_json::from_str(&response);
+
+    match data {
+        Ok(IssueListResponse {
+            data:
+                Some(IssueListData {
+                    issues: IssueListIssues { nodes: issues },
+                }),
+        }) => Ok(issues),
         err => Err(format!(
             "Could not parse response for issue:
             ---
