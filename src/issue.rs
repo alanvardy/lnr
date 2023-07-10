@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
-use crate::{color, config::Config, input, request};
+use crate::{color, config::Config, input, request, viewer};
 
 const ISSUE_CREATE_DOC: &str = "mutation (
                     $title: String!
@@ -26,7 +26,12 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                         title
                         description
                         url
-                    }
+                        branchName
+                        state {
+                            id
+                            name
+                            }
+                        }
                     }
                 }
                 ";
@@ -45,6 +50,11 @@ const ISSUE_UPDATE_DOC: &str = "mutation (
                         title
                         description
                         url
+                        branchName
+                        state {
+                            id
+                            name
+                        }
                     }
                     }
                 }
@@ -62,6 +72,25 @@ const ISSUE_LIST_DOC: &str = "query (
                             title
                             description
                             url
+                        branchName
+                        children {
+                            nodes {
+                                id
+                                identifier
+                                title
+                                description
+                                url
+                                branchName
+                                state {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        state {
+                            id
+                            name
+                        }
                     }
                   }
                 }
@@ -77,7 +106,12 @@ const ISSUE_VIEW_DOC: &str = "query (
                         identifier
                         url
                         title
+                        branchName
                         description
+                        state {
+                            id
+                            name
+                        }
                     }
                 }
                 ";
@@ -145,12 +179,22 @@ struct IssueUpdate {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
 struct Issue {
     id: String,
+    state: State,
     identifier: String,
     url: String,
     title: String,
+    branchName: String,
     description: Option<String>,
+    children: Option<IssueListIssues>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct State {
+    id: String,
+    name: String,
 }
 
 enum Format {
@@ -160,17 +204,82 @@ enum Format {
 
 impl Issue {
     fn format(&self, format: Format) -> String {
-        let title = color::blue_string(&self.title);
-        let identifier = self.identifier.clone();
-        let description = &self.description.clone().unwrap_or_default();
+        let title = color::green_string(&self.title);
+        let id = &self.identifier;
+        let description = self
+            .description
+            .clone()
+            .unwrap_or_else(|| String::from("<No description>"));
+        let state = &self.state.name;
+        let branch_name = &self.branchName;
+
+        let child_tickets = if self.is_parent() {
+            let child_count = self.child_count();
+            format!(" | {child_count} child tickets")
+        } else {
+            String::new()
+        };
 
         match format {
-            Format::View => format!("{title}\n\n{description}"),
-            Format::List => format!("- {identifier} | {title}"),
+            Format::View => {
+                format!("{title}\n{id} | {state}{child_tickets}\n{branch_name}\n\n{description}")
+            }
+
+            Format::List => {
+                let id = format!("{: >10}", id);
+                format!("- {id} | {title}\n             | {state}{child_tickets}\n")
+            }
         }
+    }
+
+    pub fn is_parent(&self) -> bool {
+        self.child_count() > 0
+    }
+
+    pub fn child_count(&self) -> u8 {
+        match &self.children {
+            None => 0,
+            Some(IssueListIssues { nodes: issues }) => {
+                if issues.is_empty() {
+                    0
+                } else {
+                    issues.len() as u8
+                }
+            }
+        }
+    }
+
+    pub fn sort(&self) -> String {
+        let parent = if self.is_parent() { 0 } else { 1 };
+        let name = self.state.name.clone();
+        format!("{parent}{name}")
     }
 }
 
+impl Display for Issue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let title = color::green_string(&self.title);
+        let id = self.identifier.clone();
+        let state = self.state.name.clone();
+
+        let child_tickets = if self.is_parent() {
+            let child_count = self.child_count();
+            format!(" | {child_count} child tickets")
+        } else {
+            String::new()
+        };
+        let id = format!("{: >10}", id);
+
+        if self.is_parent() {
+            write!(
+                f,
+                "- {id} | {title}\n             | {state}{child_tickets}\n"
+            )
+        } else {
+            write!(f, "- {id} | {title}\n             | {state}\n")
+        }
+    }
+}
 pub fn create(
     config: &Config,
     token: String,
@@ -202,36 +311,7 @@ pub fn list(
     team_id: Option<String>,
     project_id: Option<String>,
 ) -> Result<String, String> {
-    let mut filter = HashMap::new();
-    if let Some(project_id) = project_id {
-        let mut id = HashMap::new();
-        id.insert("eq".to_string(), Value::String(project_id));
-        let mut project = HashMap::new();
-        project.insert("id".to_string(), id);
-        filter.insert("project".to_string(), project);
-    }
-
-    if let Some(assignee_id) = assignee_id {
-        let mut id = HashMap::new();
-        id.insert("eq".to_string(), Value::String(assignee_id));
-        let mut project = HashMap::new();
-        project.insert("id".to_string(), id);
-        filter.insert("assignee".to_string(), project);
-    }
-
-    if let Some(team_id) = team_id {
-        let mut id = HashMap::new();
-        id.insert("eq".to_string(), Value::String(team_id));
-        let mut project = HashMap::new();
-        project.insert("id".to_string(), id);
-        filter.insert("team".to_string(), project);
-    }
-
-    let mut gql_variables = HashMap::new();
-    gql_variables.insert("filter".to_string(), json!(filter));
-
-    let response = request::gql(config, token, ISSUE_LIST_DOC, gql_variables)?;
-    let issues_text = issue_list_response(response).map(|i| {
+    let issues_text = get_issues(config, token, assignee_id, team_id, project_id).map(|i| {
         i.into_iter()
             .map(|j| j.format(Format::List))
             .collect::<Vec<String>>()
@@ -241,14 +321,56 @@ pub fn list(
     Ok(format!("\n{title}\n\n{issues_text}"))
 }
 
-pub fn view(config: &Config, token: &String, branch: String) -> Result<String, String> {
+fn get_issues(
+    config: &Config,
+    token: &String,
+    assignee_id: Option<String>,
+    team_id: Option<String>,
+    project_id: Option<String>,
+) -> Result<Vec<Issue>, String> {
+    let mut and_filters = Vec::new();
+    if let Some(project_id) = project_id {
+        and_filters.push(json!({"project": {"id": {"eq": project_id}}}));
+    }
+
+    if let Some(assignee_id) = assignee_id {
+        and_filters.push(json!({"assignee": {"id": {"eq": assignee_id}}}));
+    }
+
+    if let Some(team_id) = team_id {
+        and_filters.push(json!({"team": {"id": {"eq": team_id}}}));
+    }
+
+    and_filters.push(json!({"state": {"name": {"neq": "Done"}}}));
+    and_filters.push(json!({"state": {"name": {"neq": "Backlog"}}}));
+    and_filters.push(json!({"state": {"name": {"neq": "Triage"}}}));
+    and_filters.push(json!({"state": {"name": {"neq": "Canceled"}}}));
+    and_filters.push(json!({"state": {"name": {"neq": "Closed"}}}));
+    and_filters.push(json!({"state": {"name": {"neq": "Merged to Dev"}}}));
+
+    let filter = json!({ "and": and_filters });
     let mut gql_variables = HashMap::new();
-    gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
+    gql_variables.insert("filter".to_string(), filter);
 
-    let response = request::gql(config, token, ISSUE_VIEW_DOC, gql_variables)?;
-    let issue = issue_view_response(response, &branch)?;
+    let response = request::gql(config, token, ISSUE_LIST_DOC, gql_variables)?;
+    issue_list_response(response)
+}
 
-    Ok(issue.format(Format::View))
+pub fn view(config: &Config, token: &String, branch: Option<String>) -> Result<String, String> {
+    if let Some(branch) = branch {
+        let mut gql_variables = HashMap::new();
+        gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
+
+        let response = request::gql(config, token, ISSUE_VIEW_DOC, gql_variables)?;
+        let issue = issue_view_response(response, &branch)?;
+
+        Ok(issue.format(Format::View))
+    } else {
+        let assignee_id = viewer::get_viewer(config, token)?.id;
+        let issues = get_issues(config, token, Some(assignee_id), None, None)?;
+        let issue = input::select("Select an issue", issues, None)?;
+        Ok(issue.format(Format::View))
+    }
 }
 
 pub fn edit(config: &Config, token: &String, branch: String) -> Result<String, String> {
@@ -331,7 +453,11 @@ fn issue_list_response(response: String) -> Result<Vec<Issue>, String> {
                 Some(IssueListData {
                     issues: IssueListIssues { nodes: issues },
                 }),
-        }) => Ok(issues),
+        }) => {
+            let mut issues = issues;
+            issues.sort_by_key(|i| i.sort());
+            Ok(issues)
+        }
         err => Err(format!(
             "Could not parse response for issue:
             ---

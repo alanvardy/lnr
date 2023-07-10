@@ -13,6 +13,7 @@ mod viewer;
 
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
+use config::Config;
 use viewer::{Project, Team};
 
 const APP: &str = "lnr";
@@ -71,12 +72,16 @@ fn cmd() -> Command {
                         .arg(config_arg()),
                     Command::new("edit")
                         .about("Edit the issue for current branch")
+                        .arg(org_arg())
                         .arg(config_arg()),
                     Command::new("list")
-                        .about("List issues, maximum of 50. Returns issues assigned to user in team and project")
+                        .about("List issues, maximum of 50. Returns issues assigned to user that are Todo or In Progress")
+                        .arg(org_arg())
                         .arg(config_arg()),
                     Command::new("view")
                         .about("View the issue for current branch")
+                         .arg(flag_arg("select", 's',  "Select ticket from list view"))
+                        .arg(org_arg())
                         .arg(config_arg()),
                 ]),
             Command::new("org")
@@ -86,13 +91,10 @@ fn cmd() -> Command {
                 .subcommands([
                     Command::new("add")
                         .about("Add an organization and token to config")
-                        .arg(config_arg())
-                        .arg(name_arg())
-                        .arg(token_arg()),
+                        .arg(config_arg()),
                     Command::new("remove")
                         .about("Remove an organization and token from config")
-                        .arg(config_arg())
-                        .arg(name_arg()),
+                        .arg(config_arg()),
                     Command::new("list")
                         .about("List organizations and tokens in config")
                         .arg(config_arg()),
@@ -101,10 +103,9 @@ fn cmd() -> Command {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-    let config = config::get_or_create(None)?;
-    let token = config::get_token(&config)?;
+fn issue_create(matches: &ArgMatches) -> Result<String, String> {
+    let config = fetch_config(matches)?;
+    let token = fetch_token(matches, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
 
     let team = viewer::team(&viewer)?;
@@ -124,37 +125,37 @@ fn issue_create(_matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_view(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-    let config = config::get_or_create(None)?;
-    let token = config::get_token(&config)?;
-
-    let branch = git::get_branch()?;
-    issue::view(&config, &token, branch)
+fn issue_view(matches: &ArgMatches) -> Result<String, String> {
+    let config = fetch_config(matches)?;
+    let token = fetch_token(matches, &config)?;
+    if has_flag(matches, "select") {
+        issue::view(&config, &token, None)
+    } else {
+        let branch = git::get_branch()?;
+        issue::view(&config, &token, Some(branch))
+    }
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_edit(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-    let config = config::get_or_create(None)?;
-    let token = config::get_token(&config)?;
+fn issue_edit(matches: &ArgMatches) -> Result<String, String> {
+    let config = fetch_config(matches)?;
+    let token = fetch_token(matches, &config)?;
 
     let branch = git::get_branch()?;
     issue::edit(&config, &token, branch)
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_list(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-    let config = config::get_or_create(None)?;
-    let token = config::get_token(&config)?;
+fn issue_list(matches: &ArgMatches) -> Result<String, String> {
+    let config = fetch_config(matches)?;
+    let token = fetch_token(matches, &config)?;
 
     let viewer = viewer::get_viewer(&config, &token)?;
 
-    let team = viewer::team(&viewer)?;
-    let project_id = get_project(&team)?.map(|p| p.id);
+    // let team = viewer::team(&viewer)?;
+    // let project_id = get_project(&team)?.map(|p| p.id);
 
-    issue::list(&config, &token, Some(viewer.id), Some(team.id), project_id)
+    issue::list(&config, &token, Some(viewer.id), None, None)
 }
 
 fn get_project(team: &Team) -> Result<Option<Project>, String> {
@@ -166,10 +167,8 @@ fn get_project(team: &Team) -> Result<Option<Project>, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn organization_add(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-
-    let mut config = config::get_or_create(None)?;
+fn organization_add(matches: &ArgMatches) -> Result<String, String> {
+    let mut config = fetch_config(matches)?;
     let name = input::string("Input organization name", None)?;
     let token = input::string("Input organization token", None)?;
     config.add_organization(name, token);
@@ -177,10 +176,8 @@ fn organization_add(_matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn organization_list(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-
-    let config = config::get_or_create(None)?;
+fn organization_list(matches: &ArgMatches) -> Result<String, String> {
+    let config = fetch_config(matches)?;
     let orgs = config
         .organizations
         .into_iter()
@@ -198,10 +195,8 @@ fn organization_list(_matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn organization_remove(_matches: &ArgMatches) -> Result<String, String> {
-    check_for_latest_version();
-
-    let mut config = config::get_or_create(None)?;
+fn organization_remove(matches: &ArgMatches) -> Result<String, String> {
+    let mut config = fetch_config(matches)?;
     let org_names = config.organization_names();
     if org_names.is_empty() {
         let command = color::cyan_string("org add");
@@ -213,10 +208,47 @@ fn organization_remove(_matches: &ArgMatches) -> Result<String, String> {
     }
 }
 
+// --- VALUE HELPERS ---
+
+#[cfg(not(tarpaulin_include))]
+fn fetch_config(matches: &ArgMatches) -> Result<Config, String> {
+    check_for_latest_version();
+    let config_path = matches.get_one::<String>("config").map(|s| s.to_owned());
+
+    config::get_or_create(config_path)
+}
+
+#[cfg(not(tarpaulin_include))]
+fn fetch_token(matches: &ArgMatches, config: &Config) -> Result<String, String> {
+    let org_name = matches.get_one::<String>("org").map(|s| s.to_owned());
+    match org_name {
+        Some(string) => config.token(&string),
+        None => {
+            let mut org_names = config.organization_names();
+            org_names.sort();
+
+            if org_names.is_empty() {
+                let command = color::cyan_string("org add");
+                Err(format!("Add an organization with {}", command))
+            } else if org_names.len() == 1 {
+                config.token(org_names.first().unwrap())
+            } else {
+                let org_name = input::select("Select an organization", org_names, None)?;
+                config.token(&org_name)
+            }
+        }
+    }
+}
+
+/// Checks if the flag was used
+#[cfg(not(tarpaulin_include))]
+fn has_flag(matches: &ArgMatches, id: &'static str) -> bool {
+    matches.get_one::<String>(id) == Some(&String::from("yes"))
+}
 #[cfg(not(tarpaulin_include))]
 fn config_arg() -> Arg {
     Arg::new("config")
-        .short('o')
+        .short('c')
         .long("config")
         .num_args(1)
         .required(false)
@@ -225,27 +257,28 @@ fn config_arg() -> Arg {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn name_arg() -> Arg {
-    Arg::new("name")
-        .short('n')
-        .long("name")
+fn org_arg() -> Arg {
+    Arg::new("org")
+        .short('o')
+        .long("org")
         .num_args(1)
         .required(false)
-        .value_name("ORG NAME")
-        .help("Name for organization token")
+        .value_name("organization name")
+        .help("You will be promped at runtime if this isn't provided")
 }
 
 #[cfg(not(tarpaulin_include))]
-fn token_arg() -> Arg {
-    Arg::new("token")
-        .short('t')
-        .long("token")
-        .num_args(1)
+fn flag_arg(id: &'static str, short: char, help: &'static str) -> Arg {
+    Arg::new(id)
+        .short(short)
+        .long(id)
+        .value_parser(["yes", "no"])
+        .num_args(0..1)
+        .default_value("no")
+        .default_missing_value("yes")
         .required(false)
-        .value_name("TOKEN")
-        .help("Token for organization")
+        .help(help)
 }
-
 fn check_for_latest_version() {
     match request::get_latest_version() {
         Ok(version) if version.as_str() != VERSION => {
