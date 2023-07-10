@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Add `issue list`
+- Add `org` argument to `issue` sub commands
+- Show children count
+- Add `select` flag to `view`
 
 ## 2023-07-07 v0.1.2
 
