@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Improve issue selection
+
 ## 2023-07-10 v0.1.3
 
 - Add `issue list`
