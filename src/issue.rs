@@ -96,7 +96,7 @@ const ISSUE_LIST_DOC: &str = "query (
                 }
                 ";
 
-const ISSUE_VIEW_DOC: &str = "query (
+const ISSUE_BRANCH_VIEW_DOC: &str = "query (
                     $branchName: String!
                 ) {
                 issueVcsBranchSearch(
@@ -108,6 +108,70 @@ const ISSUE_VIEW_DOC: &str = "query (
                         title
                         branchName
                         description
+                        comments {
+                            nodes {
+                                body
+                                createdAt
+                                editedAt
+                                url
+                                user {
+                                    displayName
+                                }
+                                children {
+                                    nodes {
+                                        body
+                                        createdAt
+                                        editedAt
+                                        url
+                                        user {
+                                            displayName
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        state {
+                            id
+                            name
+                        }
+                    }
+                }
+                ";
+
+const ISSUE_ID_VIEW_DOC: &str = "query (
+                    $id: String!
+                ) {
+                issue(
+                    id: $id
+                )   {
+                        id
+                        identifier
+                        url
+                        title
+                        branchName
+                        description
+                        comments {
+                            nodes {
+                                body
+                                createdAt
+                                editedAt
+                                url
+                                user {
+                                    displayName
+                                }
+                                children {
+                                    nodes {
+                                        body
+                                        createdAt
+                                        editedAt
+                                        url
+                                        user {
+                                            displayName
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         state {
                             id
                             name
@@ -134,13 +198,23 @@ struct IssueListIssues {
 
 // ISSUE VIEW
 #[derive(Deserialize, Serialize, Debug)]
-struct IssueViewResponse {
-    data: Option<IssueViewData>,
+struct IssueBranchViewResponse {
+    data: Option<IssueBranchViewData>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct IssueIdViewResponse {
+    data: IssueData,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct IssueData {
+    issue: Option<Issue>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[allow(non_snake_case)]
-struct IssueViewData {
+struct IssueBranchViewData {
     issueVcsBranchSearch: Option<Issue>,
 }
 
@@ -189,6 +263,38 @@ struct Issue {
     branchName: String,
     description: Option<String>,
     children: Option<IssueListIssues>,
+    comments: Option<CommentsConnection>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct CommentsConnection {
+    nodes: Vec<Comment>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
+struct Comment {
+    body: String,
+    createdAt: String,
+    editedAt: Option<String>,
+    url: String,
+    user: User,
+    children: Option<CommentsConnection>,
+}
+
+impl Comment {
+    fn format(&self) -> String {
+        let divider = color::green_string("----------------");
+        let body = &self.body;
+        let user = color::cyan_string(&self.user.displayName);
+        let created_at = &self.createdAt;
+        format!("\n{body}\n\n- {user} {created_at}\n\n{divider}")
+    }
+}
+#[derive(Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
+struct User {
+    displayName: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -205,13 +311,14 @@ enum Format {
 impl Issue {
     fn format(&self, format: Format) -> String {
         let title = color::green_string(&self.title);
-        let id = &self.identifier;
+        let id = color::blue_string(&self.identifier);
         let description = self
             .description
             .clone()
             .unwrap_or_else(|| String::from("<No description>"));
         let state = &self.state.name;
         let branch_name = &self.branchName;
+        let url = &self.url;
 
         let child_tickets = if self.is_parent() {
             let child_count = self.child_count();
@@ -219,16 +326,36 @@ impl Issue {
         } else {
             String::new()
         };
+        let comments = &self.render_comments();
 
         match format {
             Format::View => {
-                format!("{title}\n{id} | {state}{child_tickets}\n{branch_name}\n\n{description}")
+                let divider = color::green_string("--- COMMENTS ---");
+                format!(
+                    "{title}\n{id} | {state}{child_tickets}\n{url}\n{branch_name}\n\n{description}\n\n{divider}\n{comments}"
+                )
             }
 
             Format::List => {
                 let id = format!("{: >10}", id);
                 format!("- {id} | {title}\n             | {state}{child_tickets}\n")
             }
+        }
+    }
+
+    fn render_comments(&self) -> String {
+        match &self.comments {
+            Some(CommentsConnection { nodes }) => {
+                let mut comment_text = nodes.iter().map(|c| c.format()).collect::<Vec<String>>();
+
+                if comment_text.is_empty() {
+                    String::from("\n<No Comments>")
+                } else {
+                    comment_text.reverse();
+                    comment_text.join("\n")
+                }
+            }
+            None => String::new(),
         }
     }
 
@@ -274,7 +401,7 @@ impl Display for Issue {
         if self.is_parent() {
             write!(
                 f,
-                "- {id} | {title}\n             | {state}{child_tickets}\n"
+                "- {id} | {title}\n               | {state}{child_tickets}\n"
             )
         } else {
             write!(f, "- {id} | {title}\n               | {state}\n")
@@ -362,8 +489,8 @@ pub fn view(config: &Config, token: &String, branch: Option<String>) -> Result<S
         let mut gql_variables = HashMap::new();
         gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
 
-        let response = request::gql(config, token, ISSUE_VIEW_DOC, gql_variables)?;
-        let issue = issue_view_response(response, &branch)?;
+        let response = request::gql(config, token, ISSUE_BRANCH_VIEW_DOC, gql_variables)?;
+        let issue = issue_branch_view_response(response, &branch)?;
 
         Ok(issue.format(Format::View))
     } else {
@@ -371,6 +498,13 @@ pub fn view(config: &Config, token: &String, branch: Option<String>) -> Result<S
         let mut issues = get_issues(config, token, Some(assignee_id), None, None)?;
         issues.reverse();
         let issue = input::select("Select an issue", issues, None)?;
+        // Need to refetch to get comments
+
+        let mut gql_variables = HashMap::new();
+        gql_variables.insert("id".to_string(), Value::String(issue.id));
+
+        let response = request::gql(config, token, ISSUE_ID_VIEW_DOC, gql_variables)?;
+        let issue = issue_id_view_response(response)?;
         Ok(issue.format(Format::View))
     }
 }
@@ -379,8 +513,8 @@ pub fn edit(config: &Config, token: &String, branch: String) -> Result<String, S
     let mut gql_variables = HashMap::new();
     gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
 
-    let response = request::gql(config, token, ISSUE_VIEW_DOC, gql_variables)?;
-    let issue = issue_view_response(response, &branch)?;
+    let response = request::gql(config, token, ISSUE_BRANCH_VIEW_DOC, gql_variables)?;
+    let issue = issue_branch_view_response(response, &branch)?;
     // Stops wierd spinner output from rolling into the input text
     println!();
     let description = input::editor(
@@ -421,21 +555,42 @@ fn issue_create_response(response: String) -> Result<Issue, String> {
     }
 }
 
-fn issue_view_response(response: String, branch: &String) -> Result<Issue, String> {
-    let data: Result<IssueViewResponse, _> = serde_json::from_str(&response);
+fn issue_branch_view_response(response: String, branch: &String) -> Result<Issue, String> {
+    let data: Result<IssueBranchViewResponse, _> = serde_json::from_str(&response);
 
     match data {
-        Ok(IssueViewResponse {
+        Ok(IssueBranchViewResponse {
             data:
-                Some(IssueViewData {
+                Some(IssueBranchViewData {
                     issueVcsBranchSearch: Some(issue),
                 }),
         }) => Ok(issue),
-        Ok(IssueViewResponse {
-            data: Some(IssueViewData {
-                issueVcsBranchSearch: None,
-            }),
+        Ok(IssueBranchViewResponse {
+            data:
+                Some(IssueBranchViewData {
+                    issueVcsBranchSearch: None,
+                }),
         }) => Err(format!("Branch {branch} not found")),
+        err => Err(format!(
+            "Could not parse response for issue:
+            ---
+            {err:?}
+            ---
+            {response:?}"
+        )),
+    }
+}
+
+fn issue_id_view_response(response: String) -> Result<Issue, String> {
+    let data: Result<IssueIdViewResponse, _> = serde_json::from_str(&response);
+
+    match data {
+        Ok(IssueIdViewResponse {
+            data: IssueData { issue: Some(issue) },
+        }) => Ok(issue),
+        Ok(IssueIdViewResponse {
+            data: IssueData { issue: None },
+        }) => Err(String::from("Issue not found")),
         err => Err(format!(
             "Could not parse response for issue:
             ---
