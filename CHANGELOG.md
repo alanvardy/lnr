@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Improve issue selection
+- Add comments to issues
 
 ## 2023-07-10 v0.1.3
 
