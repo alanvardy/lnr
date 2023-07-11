@@ -257,6 +257,7 @@ impl Issue {
 }
 
 impl Display for Issue {
+    /// This is for rendering in a select
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let title = color::green_string(&self.title);
         let id = self.identifier.clone();
@@ -276,7 +277,7 @@ impl Display for Issue {
                 "- {id} | {title}\n             | {state}{child_tickets}\n"
             )
         } else {
-            write!(f, "- {id} | {title}\n             | {state}\n")
+            write!(f, "- {id} | {title}\n               | {state}\n")
         }
     }
 }
@@ -367,7 +368,8 @@ pub fn view(config: &Config, token: &String, branch: Option<String>) -> Result<S
         Ok(issue.format(Format::View))
     } else {
         let assignee_id = viewer::get_viewer(config, token)?.id;
-        let issues = get_issues(config, token, Some(assignee_id), None, None)?;
+        let mut issues = get_issues(config, token, Some(assignee_id), None, None)?;
+        issues.reverse();
         let issue = input::select("Select an issue", issues, None)?;
         Ok(issue.format(Format::View))
     }
