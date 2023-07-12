@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2023-07-12 v0.1.4
+
 - Improve issue selection
 - Add comments to issues
 
