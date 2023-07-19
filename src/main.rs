@@ -69,6 +69,11 @@ fn cmd() -> Command {
                 .subcommands([
                     Command::new("create")
                         .about("Create a new issue")
+                        .arg(title_arg())
+                        .arg(team_arg())
+                        .arg(org_arg())
+                        .arg(description_arg())
+                         .arg(flag_arg("noproject", 'n',  "Do not prompt for a project"))
                         .arg(config_arg()),
                     Command::new("edit")
                         .about("Edit the issue for current branch")
@@ -107,11 +112,14 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
     let config = fetch_config(matches)?;
     let token = fetch_token(matches, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
-
-    let team = viewer::team(&viewer)?;
-    let project_id = get_project(&team)?.map(|p| p.id);
-    let title = input::string("Enter title", None)?;
-    let description = input::editor("Enter description", "", None)?;
+    let team_name = fetch_team_name(matches);
+    let team = viewer::team(&viewer, team_name)?;
+    let project_id = match has_flag(matches, "noproject") {
+        true => None,
+        false => get_project(&team)?.map(|p| p.id),
+    };
+    let title = fetch_string(matches, &config, "title", "Title")?;
+    let description = fetch_editor(matches, &config, "description", "Description")?;
 
     issue::create(
         &config,
@@ -268,6 +276,39 @@ fn org_arg() -> Arg {
 }
 
 #[cfg(not(tarpaulin_include))]
+fn title_arg() -> Arg {
+    Arg::new("title")
+        .short('t')
+        .long("title")
+        .num_args(1)
+        .required(false)
+        .value_name("TITLE TEXT")
+        .help("Title for issue")
+}
+
+#[cfg(not(tarpaulin_include))]
+fn team_arg() -> Arg {
+    Arg::new("team")
+        .short('e')
+        .long("team")
+        .num_args(1)
+        .required(false)
+        .value_name("TEAM NAME")
+        .help("Team name")
+}
+
+#[cfg(not(tarpaulin_include))]
+fn description_arg() -> Arg {
+    Arg::new("description")
+        .short('d')
+        .long("description")
+        .num_args(1)
+        .required(false)
+        .value_name("DESCRIPTION TEXT")
+        .help("Description for issue")
+}
+
+#[cfg(not(tarpaulin_include))]
 fn flag_arg(id: &'static str, short: char, help: &'static str) -> Arg {
     Arg::new(id)
         .short(short)
@@ -279,6 +320,40 @@ fn flag_arg(id: &'static str, short: char, help: &'static str) -> Arg {
         .required(false)
         .help(help)
 }
+
+#[cfg(not(tarpaulin_include))]
+fn fetch_string(
+    matches: &ArgMatches,
+    config: &Config,
+    field: &str,
+    prompt: &str,
+) -> Result<String, String> {
+    let argument_content = matches.get_one::<String>(field).map(|s| s.to_owned());
+    match argument_content {
+        Some(string) => Ok(string),
+        None => input::string(prompt, config.mock_string.clone()),
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+fn fetch_editor(
+    matches: &ArgMatches,
+    config: &Config,
+    field: &str,
+    prompt: &str,
+) -> Result<String, String> {
+    let argument_content = matches.get_one::<String>(field).map(|s| s.to_owned());
+    match argument_content {
+        Some(string) => Ok(string),
+        None => input::editor(prompt, "", config.mock_string.clone()),
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+fn fetch_team_name(matches: &ArgMatches) -> Option<String> {
+    matches.get_one::<String>("team").map(|s| s.to_owned())
+}
+
 fn check_for_latest_version() {
     match request::get_latest_version() {
         Ok(version) if version.as_str() != VERSION => {
