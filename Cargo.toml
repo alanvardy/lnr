@@ -1,6 +1,6 @@
 [package]
 name = "lnr"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Alan Vardy <alan@vardy.cc>"]
 edition = "2021"
 license = "MIT"

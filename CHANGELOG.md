@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2023-07-19 v0.1.5
+
+- Add flags to `issue create`
+  - `title`
+  - `description`
+  - `team`
+  - `noproject`
+
 ## 2023-07-12 v0.1.4
 
 - Improve issue selection
