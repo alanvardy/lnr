@@ -27,6 +27,9 @@ spinners = "4.1.0"
 inquire = { version = "0.6.2", features = ["editor"] }
 rand = "0.8.5"
 pretty_assertions = "1.4.0"
+toml = "0.7.6"
+walkdir = "2.3.3"
+handlebars = "4.3.7"
 
 [dev-dependencies]
 mockito = "1.0.0"

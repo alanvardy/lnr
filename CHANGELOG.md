@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `template evaluate`
+
 ## 2023-07-19 v0.1.5
 
 - Add flags to `issue create`
