@@ -8,6 +8,7 @@ mod git;
 mod input;
 mod issue;
 mod request;
+mod template;
 mod test;
 mod viewer;
 
@@ -37,6 +38,10 @@ fn main() {
             Some(("add", m)) => organization_add(m),
             Some(("remove", m)) => organization_remove(m),
             Some(("list", m)) => organization_list(m),
+            _ => unreachable!(),
+        },
+        Some(("template", issue_matches)) => match issue_matches.subcommand() {
+            Some(("evaluate", m)) => template_evaluate(m),
             _ => unreachable!(),
         },
         _ => unreachable!(),
@@ -104,8 +109,23 @@ fn cmd() -> Command {
                         .about("List organizations and tokens in config")
                         .arg(config_arg()),
                 ]),
+            Command::new("template")
+                .arg_required_else_help(true)
+                .propagate_version(true)
+                .subcommand_required(true)
+                .subcommands([
+                    Command::new("evaluate")
+                        .about("create issues from a TOML file")
+                        .arg(team_arg())
+                        .arg(org_arg())
+                        .arg(path_arg())
+                         .arg(flag_arg("noproject", 'n',  "Do not prompt for a project"))
+                        .arg(config_arg()),
+                ]),
         ])
 }
+
+// --- ISSUES ---
 
 #[cfg(not(tarpaulin_include))]
 fn issue_create(matches: &ArgMatches) -> Result<String, String> {
@@ -166,13 +186,7 @@ fn issue_list(matches: &ArgMatches) -> Result<String, String> {
     issue::list(&config, &token, Some(viewer.id), None, None)
 }
 
-fn get_project(team: &Team) -> Result<Option<Project>, String> {
-    let mut project_names = viewer::project_names(team)?;
-    project_names.sort();
-    project_names.insert(0, String::from("None"));
-    let project_name = input::select("Select project", project_names, None)?;
-    viewer::project(team, project_name)
-}
+// --- ORGANIZATIONS ---
 
 #[cfg(not(tarpaulin_include))]
 fn organization_add(matches: &ArgMatches) -> Result<String, String> {
@@ -216,6 +230,30 @@ fn organization_remove(matches: &ArgMatches) -> Result<String, String> {
     }
 }
 
+// --- TEMPLATES ---
+
+#[cfg(not(tarpaulin_include))]
+fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
+    let config = fetch_config(matches)?;
+    let token = fetch_token(matches, &config)?;
+    let viewer = viewer::get_viewer(&config, &token)?;
+    let team_name = fetch_team_name(matches);
+    let team = viewer::team(&viewer, team_name)?;
+    // let assignee_id = fetch_assignee(matches, &config, &token, &viewer)?;
+    let path = fetch_string(
+        matches,
+        &config,
+        "path",
+        "Enter path to TOML file or directory",
+    )?;
+    let project = match has_flag(matches, "noproject") {
+        true => None,
+        false => get_project(&team)?,
+    };
+
+    template::evaluate(&config, &token, &team, &project, &viewer, &path)
+}
+
 // --- VALUE HELPERS ---
 
 #[cfg(not(tarpaulin_include))]
@@ -246,6 +284,14 @@ fn fetch_token(matches: &ArgMatches, config: &Config) -> Result<String, String> 
             }
         }
     }
+}
+
+fn get_project(team: &Team) -> Result<Option<Project>, String> {
+    let mut project_names = viewer::project_names(team)?;
+    project_names.sort();
+    project_names.insert(0, String::from("None"));
+    let project_name = input::select("Select project", project_names, None)?;
+    viewer::project(team, project_name)
 }
 
 /// Checks if the flag was used
@@ -295,6 +341,17 @@ fn team_arg() -> Arg {
         .required(false)
         .value_name("TEAM NAME")
         .help("Team name")
+}
+
+#[cfg(not(tarpaulin_include))]
+fn path_arg() -> Arg {
+    Arg::new("path")
+        .short('p')
+        .long("path")
+        .num_args(1)
+        .required(false)
+        .value_name("PATH")
+        .help("Path to file or directory")
 }
 
 #[cfg(not(tarpaulin_include))]
