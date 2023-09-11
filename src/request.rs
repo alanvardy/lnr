@@ -64,13 +64,14 @@ impl Gql {
     }
 
     pub fn run(self) -> Result<String, String> {
+        let url = get_base_url(&self.config);
         let authorization: &str = &format!("Bearer {}", self.token);
 
         let body = json!({"query": self.query, "variables": self.variables});
 
         let spinner = maybe_start_spinner(&self.config);
         let response = Client::new()
-            .post(LINEAR_URL)
+            .post(url.clone())
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, authorization)
             .json(&body)
@@ -82,7 +83,13 @@ impl Gql {
         if response.status().is_success() {
             Ok(response.text().or(Err("Could not read response text"))?)
         } else {
-            Err(format!("Error: {:#?}", response.text()))
+            Err(format!(
+                "
+                url: {url}
+                body: {body}
+                Error: {:?}",
+                response
+            ))
         }
     }
 }
@@ -125,4 +132,12 @@ fn maybe_stop_spinner(spinner: Option<Spinner>) {
         sp.stop();
         print!("\x1b[2K\r");
     };
+}
+
+fn get_base_url(config: &Config) -> String {
+    if cfg!(test) {
+        config.mock_url.clone().expect("Mock URL not set")
+    } else {
+        LINEAR_URL.to_string()
+    }
 }
