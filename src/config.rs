@@ -135,6 +135,22 @@ mod tests {
                 ..self
             }
         }
+
+        // /// Mock out the string response
+        // pub fn mock_string(self, string: &str) -> Config {
+        //     Config {
+        //         mock_string: Some(string.to_string()),
+        //         ..self
+        //     }
+        // }
+
+        // /// Mock out the select response, setting the index of the response
+        // pub fn mock_select(self, index: usize) -> Config {
+        //     Config {
+        //         mock_select: Some(index),
+        //         ..self
+        //     }
+        // }
     }
 
     use matches::assert_matches;

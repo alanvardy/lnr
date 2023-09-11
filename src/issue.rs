@@ -556,7 +556,6 @@ fn issue_create_response(response: String) -> Result<Issue, String> {
 
 fn issue_branch_view_response(response: String, branch: &String) -> Result<Issue, String> {
     let data: Result<IssueBranchViewResponse, _> = serde_json::from_str(&response);
-
     match data {
         Ok(IssueBranchViewResponse {
             data:
@@ -641,5 +640,69 @@ fn issue_update_response(response: String) -> Result<Issue, String> {
             ---
             {response:?}"
         )),
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_create() {
+        let mut server = mockito::Server::new();
+        let mock = server
+            .mock("POST", "/")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(test::responses::issue_create())
+            .create();
+        let config = test::fixtures::config().mock_url(server.url());
+
+        let token = "1234";
+        let title = "Test".to_string();
+        let description = "A Description".to_string();
+        let team_id = "123".to_string();
+        let project_id = None;
+        let assignee_id = "456".to_string();
+
+        let result = create(
+            &config,
+            token,
+            title,
+            description,
+            team_id,
+            project_id,
+            assignee_id,
+        );
+        assert_eq!(
+            result,
+            Ok("https://linear.app/vardy/issue/BE-3354/test".to_string())
+        );
+        mock.assert();
+    }
+
+    #[test]
+    fn test_list() {
+        let mut server = mockito::Server::new();
+        let mock = server
+            .mock("POST", "/")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(test::responses::issue_list())
+            .create();
+        let config = test::fixtures::config().mock_url(server.url());
+
+        let token = "1234";
+        let team_id = None;
+        let project_id = None;
+        let assignee_id = None;
+
+        let result = list(&config, token, assignee_id, team_id, project_id);
+        assert_eq!(
+            result,
+            Ok("\nIssues\n\n-   SHO-2148 | Modify schema\n             | Todo\n".to_string())
+        );
+        mock.assert();
     }
 }

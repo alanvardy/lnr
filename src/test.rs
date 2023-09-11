@@ -15,3 +15,52 @@ pub mod fixtures {
         }
     }
 }
+#[cfg(test)]
+pub mod responses {
+    pub fn issue_create() -> String {
+        "{
+            \"data\":{
+              \"issueCreate\":{
+                \"issue\":{
+                  \"id\":\"cbe16d8a-9999-9999-9999-9f2e79c3cb7e\",
+                  \"identifier\":\"BE-3354\",
+                  \"title\":\"Test\",
+                  \"description\":null,
+                  \"url\":\"https://linear.app/vardy/issue/BE-3354/test\",
+                  \"branchName\":\"be-3354-test\",
+                  \"state\":{
+                    \"id\":\"eb19df39-9999-9999-9999-b698543f01ce\",
+                    \"name\":\"Triage\"
+                  }
+                }
+              }
+            }
+          }\n"
+        .to_string()
+    }
+
+    pub fn issue_list() -> String {
+        "{\"data\":
+            {\"issues\":{
+              \"nodes\":[
+                {
+                    \"id\":\"438bced3-9999-9999-9999-a51423f24fc6\",
+                    \"identifier\":\"SHO-2148\",
+                    \"title\":\"Modify schema\",
+                    \"description\":\"* Make item_name_id nullable\\n* Add non-null field for listing_url\\n* Unique index on listing_url\\n\\n* [ ] Migration\\n* [ ] Change schema\\n* [ ] Add to GQL type\",
+                    \"url\":\"https://linear.app/vardy/issue/SHO-2148/modify-schema\",
+                    \"branchName\":\"sho-2148-modify-schema\",
+                    \"children\":{
+                      \"nodes\":[]
+                    },
+                    \"state\":{
+                      \"id\":\"7a890819-9999-9999-9999-b1abe79c2b8e\",
+                      \"name\":\"Todo\"
+                    }
+                  }
+                ]
+              }
+            }
+        }\n".to_string()
+    }
+}
