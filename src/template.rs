@@ -1,6 +1,6 @@
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
@@ -81,7 +81,7 @@ struct Issue {
 /// We want to support a file path or a directory
 pub fn evaluate(
     config: &Config,
-    token: &String,
+    token: &str,
     team: &Team,
     project: &Option<Project>,
     viewer: &Viewer,
@@ -110,7 +110,7 @@ pub fn evaluate(
 
 fn create_issues(
     config: &Config,
-    token: &String,
+    token: &str,
     team: &Team,
     viewer: &Viewer,
     project: &Option<Project>,
@@ -134,17 +134,16 @@ fn create_issues(
     let title = fill_in_variables(parent.title.clone(), variables.clone())?;
     let description_template = parent.description.unwrap_or_default();
     let description = fill_in_variables(description_template, variables.clone())?;
+    let project_id = project.clone().map(|p| p.id);
 
-    let mut gql_variables = HashMap::new();
-    gql_variables.insert("title".to_string(), Value::String(title));
-    gql_variables.insert("teamId".to_string(), Value::String(team.id.clone()));
-    gql_variables.insert("assigneeId".to_string(), Value::String(viewer.id.clone()));
-    if let Some(project) = project {
-        gql_variables.insert("projectId".to_string(), Value::String(project.id.clone()));
-    }
-    gql_variables.insert("description".to_string(), Value::String(description));
+    let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
+        .put_string("title", title)
+        .put_string("teamId", team.id.clone())
+        .put_string("assigneeId", viewer.id.clone())
+        .put_string("description", description)
+        .maybe_put_string("projectId", project_id.clone())
+        .run()?;
 
-    let response = request::gql(config, token, ISSUE_CREATE_DOC, gql_variables)?;
     let Issue { id, url } = extract_id_from_response(response)?;
 
     println!("- [{}] {}", id, url);
@@ -154,16 +153,14 @@ fn create_issues(
         let child_description_template = child.description.clone().unwrap_or_default();
         let child_description = fill_in_variables(child_description_template, variables.clone())?;
 
-        let mut gql_variables = HashMap::new();
-        gql_variables.insert("title".to_string(), Value::String(title));
-        gql_variables.insert("teamId".to_string(), Value::String(team.id.clone()));
-        gql_variables.insert("parentId".to_string(), Value::String(id.clone()));
-        gql_variables.insert("assigneeId".to_string(), Value::String(viewer.id.clone()));
-        gql_variables.insert("description".to_string(), Value::String(child_description));
-        if let Some(project) = project {
-            gql_variables.insert("projectId".to_string(), Value::String(project.id.clone()));
-        }
-        let response = request::gql(config, token, ISSUE_CREATE_DOC, gql_variables)?.to_string();
+        let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
+            .put_string("title", title)
+            .put_string("teamId", team.id.clone())
+            .put_string("parentId", id.clone())
+            .put_string("assigneeId", viewer.id.clone())
+            .put_string("description", child_description)
+            .maybe_put_string("projectId", project_id.clone())
+            .run()?;
         let Issue { id, url } = extract_id_from_response(response)?;
         println!("  - [{}] {}", id, url);
     }
