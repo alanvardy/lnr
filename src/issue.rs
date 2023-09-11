@@ -410,23 +410,21 @@ impl Display for Issue {
 }
 pub fn create(
     config: &Config,
-    token: String,
+    token: &str,
     title: String,
     description: String,
     team_id: String,
     project_id: Option<String>,
     assignee_id: String,
 ) -> Result<String, String> {
-    let mut gql_variables = HashMap::new();
-    gql_variables.insert("title".to_string(), Value::String(title));
-    gql_variables.insert("teamId".to_string(), Value::String(team_id));
-    gql_variables.insert("assigneeId".to_string(), Value::String(assignee_id));
-    if let Some(id) = project_id {
-        gql_variables.insert("projectId".to_string(), Value::String(id));
-    }
-    gql_variables.insert("description".to_string(), Value::String(description));
+    let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
+        .put_string("title", title)
+        .put_string("assigneeId", assignee_id)
+        .put_string("teamId", team_id)
+        .maybe_put_string("projectId", project_id)
+        .put_string("description", description)
+        .run()?;
 
-    let response = request::gql(config, &token, ISSUE_CREATE_DOC, gql_variables)?;
     let Issue { url, .. } = issue_create_response(response)?;
 
     Ok(url)
@@ -434,7 +432,7 @@ pub fn create(
 
 pub fn list(
     config: &Config,
-    token: &String,
+    token: &str,
     assignee_id: Option<String>,
     team_id: Option<String>,
     project_id: Option<String>,
@@ -451,7 +449,7 @@ pub fn list(
 
 fn get_issues(
     config: &Config,
-    token: &String,
+    token: &str,
     assignee_id: Option<String>,
     team_id: Option<String>,
     project_id: Option<String>,
@@ -480,16 +478,17 @@ fn get_issues(
     let mut gql_variables = HashMap::new();
     gql_variables.insert("filter".to_string(), filter);
 
-    let response = request::gql(config, token, ISSUE_LIST_DOC, gql_variables)?;
+    let response = request::Gql::new(config, token, ISSUE_LIST_DOC)
+        .put_variables(gql_variables)
+        .run()?;
     issue_list_response(response)
 }
 
-pub fn view(config: &Config, token: &String, branch: Option<String>) -> Result<String, String> {
+pub fn view(config: &Config, token: &str, branch: Option<String>) -> Result<String, String> {
     if let Some(branch) = branch {
-        let mut gql_variables = HashMap::new();
-        gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
-
-        let response = request::gql(config, token, ISSUE_BRANCH_VIEW_DOC, gql_variables)?;
+        let response = request::Gql::new(config, token, ISSUE_BRANCH_VIEW_DOC)
+            .put_string("branchName", branch.clone())
+            .run()?;
         let issue = issue_branch_view_response(response, &branch)?;
 
         Ok(issue.format(Format::View))
@@ -500,20 +499,19 @@ pub fn view(config: &Config, token: &String, branch: Option<String>) -> Result<S
         let issue = input::select("Select an issue", issues, None)?;
         // Need to refetch to get comments
 
-        let mut gql_variables = HashMap::new();
-        gql_variables.insert("id".to_string(), Value::String(issue.id));
+        let response = request::Gql::new(config, token, ISSUE_ID_VIEW_DOC)
+            .put_string("id", issue.id)
+            .run()?;
 
-        let response = request::gql(config, token, ISSUE_ID_VIEW_DOC, gql_variables)?;
         let issue = issue_id_view_response(response)?;
         Ok(issue.format(Format::View))
     }
 }
 
-pub fn edit(config: &Config, token: &String, branch: String) -> Result<String, String> {
-    let mut gql_variables = HashMap::new();
-    gql_variables.insert("branchName".to_string(), Value::String(branch.clone()));
-
-    let response = request::gql(config, token, ISSUE_BRANCH_VIEW_DOC, gql_variables)?;
+pub fn edit(config: &Config, token: &str, branch: String) -> Result<String, String> {
+    let response = request::Gql::new(config, token, ISSUE_BRANCH_VIEW_DOC)
+        .put_string("branchName", branch.clone())
+        .run()?;
     let issue = issue_branch_view_response(response, &branch)?;
     // Stops wierd spinner output from rolling into the input text
     println!();
@@ -528,8 +526,9 @@ pub fn edit(config: &Config, token: &String, branch: String) -> Result<String, S
     let mut gql_variables = HashMap::new();
     gql_variables.insert("id".to_string(), Value::String(issue.id));
     gql_variables.insert("input".to_string(), json!(input));
-
-    let response = request::gql(config, token, ISSUE_UPDATE_DOC, gql_variables)?;
+    let response = request::Gql::new(config, token, ISSUE_UPDATE_DOC)
+        .put_variables(gql_variables)
+        .run()?;
     let issue = issue_update_response(response)?;
     Ok(issue.url)
 }

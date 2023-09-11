@@ -28,31 +28,62 @@ struct Version {
     num: String,
 }
 
-pub fn gql(
-    config: &Config,
-    token: &String,
-    query: &str,
+pub struct Gql {
+    config: Config,
+    token: String,
+    query: String,
     variables: HashMap<String, Value>,
-) -> Result<String, String> {
-    let authorization: &str = &format!("Bearer {token}");
+}
 
-    let body = json!({"query": query, "variables": variables});
+impl Gql {
+    pub fn new(config: &Config, token: &str, query: &str) -> Gql {
+        Gql {
+            config: config.clone(),
+            token: token.to_string(),
+            query: query.to_string(),
+            variables: HashMap::new(),
+        }
+    }
 
-    let spinner = maybe_start_spinner(config);
-    let response = Client::new()
-        .post(LINEAR_URL)
-        .header(CONTENT_TYPE, "application/json")
-        .header(AUTHORIZATION, authorization)
-        .json(&body)
-        .send()
-        .or(Err("Did not get response from server"))?;
+    pub fn put_variables(mut self, variables: HashMap<String, Value>) -> Gql {
+        self.variables = variables;
+        self
+    }
 
-    maybe_stop_spinner(spinner);
+    pub fn put_string(mut self, key: &str, value: String) -> Gql {
+        self.variables.insert(key.to_string(), Value::String(value));
 
-    if response.status().is_success() {
-        Ok(response.text().or(Err("Could not read response text"))?)
-    } else {
-        Err(format!("Error: {:#?}", response.text()))
+        self
+    }
+    pub fn maybe_put_string(mut self, key: &str, value: Option<String>) -> Gql {
+        if let Some(value) = value {
+            self.variables.insert(key.to_string(), Value::String(value));
+        }
+
+        self
+    }
+
+    pub fn run(self) -> Result<String, String> {
+        let authorization: &str = &format!("Bearer {}", self.token);
+
+        let body = json!({"query": self.query, "variables": self.variables});
+
+        let spinner = maybe_start_spinner(&self.config);
+        let response = Client::new()
+            .post(LINEAR_URL)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, authorization)
+            .json(&body)
+            .send()
+            .or(Err("Did not get response from server"))?;
+
+        maybe_stop_spinner(spinner);
+
+        if response.status().is_success() {
+            Ok(response.text().or(Err("Could not read response text"))?)
+        } else {
+            Err(format!("Error: {:#?}", response.text()))
+        }
     }
 }
 

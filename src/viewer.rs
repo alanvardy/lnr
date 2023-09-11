@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
@@ -74,10 +72,10 @@ pub struct Project {
     pub id: String,
 }
 
-pub fn get_viewer(config: &Config, token: &String) -> Result<Viewer, String> {
-    let json = request::gql(config, token, FETCH_IDS_DOC, HashMap::new())?;
+pub fn get_viewer(config: &Config, token: &str) -> Result<Viewer, String> {
+    let response = request::Gql::new(config, token, FETCH_IDS_DOC).run()?;
 
-    let result: Result<ViewerData, _> = serde_json::from_str(&json);
+    let result: Result<ViewerData, _> = serde_json::from_str(&response);
     match result {
         Ok(body) => Ok(body.data.viewer),
         Err(err) => Err(format!("Could not parse response for item: {err:?}")),

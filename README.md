@@ -1,5 +1,15 @@
 # lnr
 
+<!--toc:start-->
+- [lnr](#lnr)
+  - [Working with issues](#working-with-issues)
+  - [Working with templates](#working-with-templates)
+    - [Create a series of tickets from a TOML file](#create-a-series-of-tickets-from-a-toml-file)
+    - [Create a series of tickets from all TOML files in a directory](#create-a-series-of-tickets-from-all-toml-files-in-a-directory)
+  - [Installation](#installation)
+  - [Contributing](#contributing)
+<!--toc:end-->
+
 [![Build Status](https://github.com/alanvardy/lnr/workflows/ci/badge.svg)](https://github.com/alanvardy/lnr) [![codecov](https://codecov.io/gh/alanvardy/lnr/branch/main/graph/badge.svg?token=9FBJK1SU0K)](https://codecov.io/gh/alanvardy/lnr) [![Crates.io](https://img.shields.io/crates/v/lnr.svg)](https://crates.io/crates/lnr)
 
 A Linear command line client

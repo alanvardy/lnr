@@ -143,7 +143,7 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
 
     issue::create(
         &config,
-        token,
+        &token,
         title,
         description,
         team.id,
