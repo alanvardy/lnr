@@ -2,13 +2,18 @@
 
 ## Unreleased
 
+- Add arguments to `issue list`
+  - `team`
+  - `noteam`
+  - `noproject`
+
 ## 2023-09-11 v0.1.6
 
 - Add `template evaluate`
 
 ## 2023-07-19 v0.1.5
 
-- Add flags to `issue create`
+- Add arguments to `issue create`
   - `title`
   - `description`
   - `team`

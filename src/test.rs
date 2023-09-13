@@ -2,7 +2,10 @@
 pub mod fixtures {
     use std::collections::HashMap;
 
-    use crate::config::{self, Config};
+    use crate::{
+        config::{self, Config},
+        viewer::{ProjectNode, Team},
+    };
 
     pub fn config() -> Config {
         Config {
@@ -12,6 +15,13 @@ pub mod fixtures {
             mock_string: None,
             mock_select: None,
             spinners: Some(true),
+        }
+    }
+    pub fn team() -> Team {
+        Team {
+            name: "Thundercats".to_string(),
+            id: "123456".to_string(),
+            projects: ProjectNode { nodes: Vec::new() },
         }
     }
 }
