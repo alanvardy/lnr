@@ -87,6 +87,9 @@ fn cmd() -> Command {
                     Command::new("list")
                         .about("List issues, maximum of 50. Returns issues assigned to user that are Todo or In Progress")
                         .arg(org_arg())
+                        .arg(team_arg())
+                         .arg(flag_arg("noproject", 'n',  "Do not prompt for a project"))
+                         .arg(flag_arg("noteam", 't',  "Do not prompt for a team"))
                         .arg(config_arg()),
                     Command::new("view")
                         .about("View the issue for current branch")
@@ -134,9 +137,9 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
     let viewer = viewer::get_viewer(&config, &token)?;
     let team_name = fetch_team_name(matches);
     let team = viewer::team(&viewer, team_name)?;
-    let project_id = match has_flag(matches, "noproject") {
+    let project = match has_flag(matches, "noproject") {
         true => None,
-        false => get_project(&team)?.map(|p| p.id),
+        false => get_project(&Some(team.clone()))?,
     };
     let title = fetch_string(matches, &config, "title", "Title")?;
     let description = fetch_editor(matches, &config, "description", "Description")?;
@@ -146,8 +149,8 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
         &token,
         title,
         description,
-        team.id,
-        project_id,
+        team,
+        project,
         viewer.id,
     )
 }
@@ -180,10 +183,17 @@ fn issue_list(matches: &ArgMatches) -> Result<String, String> {
 
     let viewer = viewer::get_viewer(&config, &token)?;
 
-    // let team = viewer::team(&viewer)?;
-    // let project_id = get_project(&team)?.map(|p| p.id);
+    let team_name = fetch_team_name(matches);
+    let team = match has_flag(matches, "noteam") {
+        true => None,
+        false => Some(viewer::team(&viewer, team_name)?),
+    };
+    let project = match has_flag(matches, "noproject") {
+        true => None,
+        false => get_project(&team)?,
+    };
 
-    issue::list(&config, &token, Some(viewer.id), None, None)
+    issue::list(&config, &token, Some(viewer.id), team, project)
 }
 
 // --- ORGANIZATIONS ---
@@ -239,7 +249,6 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
     let viewer = viewer::get_viewer(&config, &token)?;
     let team_name = fetch_team_name(matches);
     let team = viewer::team(&viewer, team_name)?;
-    // let assignee_id = fetch_assignee(matches, &config, &token, &viewer)?;
     let path = fetch_string(
         matches,
         &config,
@@ -248,7 +257,7 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
     )?;
     let project = match has_flag(matches, "noproject") {
         true => None,
-        false => get_project(&team)?,
+        false => get_project(&Some(team.clone()))?,
     };
 
     template::evaluate(&config, &token, &team, &project, &viewer, &path)
@@ -286,8 +295,11 @@ fn fetch_token(matches: &ArgMatches, config: &Config) -> Result<String, String> 
     }
 }
 
-fn get_project(team: &Team) -> Result<Option<Project>, String> {
+fn get_project(team: &Option<Team>) -> Result<Option<Project>, String> {
     let mut project_names = viewer::project_names(team)?;
+    if project_names.is_empty() {
+        return Ok(None);
+    }
     project_names.sort();
     project_names.insert(0, String::from("None"));
     let project_name = input::select("Select project", project_names, None)?;

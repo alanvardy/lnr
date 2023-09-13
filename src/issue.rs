@@ -2,7 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{collections::HashMap, fmt::Display};
 
-use crate::{color, config::Config, input, request, viewer};
+use crate::{
+    color,
+    config::Config,
+    input, request,
+    viewer::{self, Project, Team},
+};
 
 const ISSUE_CREATE_DOC: &str = "mutation (
                     $title: String!
@@ -413,15 +418,15 @@ pub fn create(
     token: &str,
     title: String,
     description: String,
-    team_id: String,
-    project_id: Option<String>,
+    team: Team,
+    project: Option<Project>,
     assignee_id: String,
 ) -> Result<String, String> {
     let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
         .put_string("title", title)
         .put_string("assigneeId", assignee_id)
-        .put_string("teamId", team_id)
-        .maybe_put_string("projectId", project_id)
+        .put_string("teamId", team.id)
+        .maybe_put_string("projectId", project.map(|p| p.id))
         .put_string("description", description)
         .run()?;
 
@@ -434,10 +439,10 @@ pub fn list(
     config: &Config,
     token: &str,
     assignee_id: Option<String>,
-    team_id: Option<String>,
-    project_id: Option<String>,
+    team: Option<Team>,
+    project: Option<Project>,
 ) -> Result<String, String> {
-    let issues_text = get_issues(config, token, assignee_id, team_id, project_id).map(|i| {
+    let issues_text = get_issues(config, token, assignee_id, team, project).map(|i| {
         i.into_iter()
             .map(|j| j.format(Format::List))
             .collect::<Vec<String>>()
@@ -451,20 +456,20 @@ fn get_issues(
     config: &Config,
     token: &str,
     assignee_id: Option<String>,
-    team_id: Option<String>,
-    project_id: Option<String>,
+    team: Option<Team>,
+    project: Option<Project>,
 ) -> Result<Vec<Issue>, String> {
     let mut and_filters = Vec::new();
-    if let Some(project_id) = project_id {
-        and_filters.push(json!({"project": {"id": {"eq": project_id}}}));
+    if let Some(Project { id, .. }) = project {
+        and_filters.push(json!({"project": {"id": {"eq": id}}}));
     }
 
     if let Some(assignee_id) = assignee_id {
         and_filters.push(json!({"assignee": {"id": {"eq": assignee_id}}}));
     }
 
-    if let Some(team_id) = team_id {
-        and_filters.push(json!({"team": {"id": {"eq": team_id}}}));
+    if let Some(Team { id, .. }) = team {
+        and_filters.push(json!({"team": {"id": {"eq": id}}}));
     }
 
     and_filters.push(json!({"state": {"name": {"neq": "Done"}}}));
@@ -662,8 +667,8 @@ mod tests {
         let token = "1234";
         let title = "Test".to_string();
         let description = "A Description".to_string();
-        let team_id = "123".to_string();
-        let project_id = None;
+        let team = test::fixtures::team();
+        let project = None;
         let assignee_id = "456".to_string();
 
         let result = create(
@@ -671,8 +676,8 @@ mod tests {
             token,
             title,
             description,
-            team_id,
-            project_id,
+            team,
+            project,
             assignee_id,
         );
         assert_eq!(
