@@ -105,6 +105,8 @@ lnr template evaluate --path .
 
 ## Installation
 
+### Crates.io (Linux, Mac, and Windows)
+
 [Install Rust](https://www.rust-lang.org/tools/install)
 
 ```bash
@@ -117,6 +119,28 @@ Install `lnr`
 ```bash
 cargo install lnr
 ```
+
+### AUR (Arch-based Linux)
+
+```bash
+# Use yay or another AUR helper
+yay lnr-bin
+```
+
+### GitHub (Linux, Mac, and Windows)
+
+[Install Rust](https://www.rust-lang.org/tools/install)
+
+Clone the project
+
+```bash
+git clone git@github.com:alanvardy/lnr.git
+cd tod
+./test.sh # run the tests
+cargo build --release
+```
+
+You can then find the binary in `/target/release/`
 
 ## Contributing
 
