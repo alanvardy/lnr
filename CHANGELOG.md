@@ -6,6 +6,7 @@
   - `team`
   - `noteam`
   - `noproject`
+- Fix auth issue, API removed `Bearer`.
 
 ## 2023-09-11 v0.1.6
 

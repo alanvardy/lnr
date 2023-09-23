@@ -65,7 +65,6 @@ impl Gql {
 
     pub fn run(self) -> Result<String, String> {
         let url = get_base_url(&self.config);
-        let authorization: &str = &format!("Bearer {}", self.token);
 
         let body = json!({"query": self.query, "variables": self.variables});
 
@@ -73,7 +72,7 @@ impl Gql {
         let response = Client::new()
             .post(url.clone())
             .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, authorization)
+            .header(AUTHORIZATION, self.token)
             .json(&body)
             .send()
             .or(Err("Did not get response from server"))?;
@@ -86,7 +85,9 @@ impl Gql {
             Err(format!(
                 "
                 url: {url}
+                ========
                 body: {body}
+                ========
                 Error: {:?}",
                 response
             ))
