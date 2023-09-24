@@ -7,6 +7,9 @@
     - [Create a series of tickets from a TOML file](#create-a-series-of-tickets-from-a-toml-file)
     - [Create a series of tickets from all TOML files in a directory](#create-a-series-of-tickets-from-all-toml-files-in-a-directory)
   - [Installation](#installation)
+    - [Crates.io (Linux, Mac, and Windows)](#cratesio-linux-mac-and-windows)
+    - [AUR (Arch-based Linux)](#aur-arch-based-linux)
+    - [GitHub (Linux, Mac, and Windows)](#github-linux-mac-and-windows)
   - [Contributing](#contributing)
 <!--toc:end-->
 

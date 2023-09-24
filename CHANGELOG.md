@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2023-09-23 v0.1.7
+
 - Add arguments to `issue list`
   - `team`
   - `noteam`
