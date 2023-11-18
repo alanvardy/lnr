@@ -4,7 +4,7 @@ pub mod fixtures {
 
     use crate::{
         config::{self, Config},
-        viewer::{ProjectNode, Team},
+        team::{ProjectNode, State, StateNode, Team},
     };
 
     pub fn config() -> Config {
@@ -21,7 +21,15 @@ pub mod fixtures {
         Team {
             name: "Thundercats".to_string(),
             id: "123456".to_string(),
-            projects: ProjectNode { nodes: Vec::new() },
+            projects: Some(ProjectNode { nodes: Vec::new() }),
+            states: Some(StateNode { nodes: Vec::new() }),
+        }
+    }
+    pub fn state() -> State {
+        State {
+            name: "Thundercats".to_string(),
+            id: "123456".to_string(),
+            position: 1,
         }
     }
 }
@@ -40,6 +48,7 @@ pub mod responses {
                   \"branchName\":\"be-3354-test\",
                   \"state\":{
                     \"id\":\"eb19df39-9999-9999-9999-b698543f01ce\",
+                    \"position\":1,
                     \"name\":\"Triage\"
                   }
                 }
@@ -65,6 +74,7 @@ pub mod responses {
                     },
                     \"state\":{
                       \"id\":\"7a890819-9999-9999-9999-b1abe79c2b8e\",
+                        \"position\":1,
                       \"name\":\"Todo\"
                     }
                   }

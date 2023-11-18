@@ -8,6 +8,7 @@ mod git;
 mod input;
 mod issue;
 mod request;
+mod team;
 mod template;
 mod test;
 mod viewer;
@@ -15,7 +16,7 @@ mod viewer;
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
 use config::Config;
-use viewer::{Project, Team};
+use team::{Project, State, Team};
 
 const APP: &str = "lnr";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -137,6 +138,7 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
     let viewer = viewer::get_viewer(&config, &token)?;
     let team_name = fetch_team_name(matches);
     let team = viewer::team(&viewer, team_name)?;
+    let state = get_state(&config, &token, &team)?;
     let project = match has_flag(matches, "noproject") {
         true => None,
         false => get_project(&Some(team.clone()))?,
@@ -151,6 +153,7 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
         description,
         team,
         project,
+        state,
         viewer.id,
     )
 }
@@ -249,6 +252,7 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
     let viewer = viewer::get_viewer(&config, &token)?;
     let team_name = fetch_team_name(matches);
     let team = viewer::team(&viewer, team_name)?;
+    let state = get_state(&config, &token, &team)?;
     let path = fetch_string(
         matches,
         &config,
@@ -260,7 +264,7 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
         false => get_project(&Some(team.clone()))?,
     };
 
-    template::evaluate(&config, &token, &team, &project, &viewer, &path)
+    template::evaluate(&config, &token, &team, &project, &viewer, &path, &state)
 }
 
 // --- VALUE HELPERS ---
@@ -304,6 +308,11 @@ fn get_project(team: &Option<Team>) -> Result<Option<Project>, String> {
     project_names.insert(0, String::from("None"));
     let project_name = input::select("Select project", project_names, None)?;
     viewer::project(team, project_name)
+}
+
+fn get_state(config: &Config, token: &str, team: &Team) -> Result<State, String> {
+    let states = team::get_states(config, token, team)?;
+    input::select("Select state", states, None)
 }
 
 /// Checks if the flag was used
