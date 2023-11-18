@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::Config;
 use crate::input;
 use crate::request;
+use crate::{Project, Team};
 
 const FETCH_IDS_DOC: &str = "
         query {
@@ -54,24 +55,6 @@ struct TeamNode {
     team: Team,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Team {
-    pub name: String,
-    pub id: String,
-    pub projects: ProjectNode,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProjectNode {
-    pub nodes: Vec<Project>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Project {
-    name: String,
-    pub id: String,
-}
-
 pub fn get_viewer(config: &Config, token: &str) -> Result<Viewer, String> {
     let response = request::Gql::new(config, token, FETCH_IDS_DOC).run()?;
 
@@ -99,6 +82,8 @@ pub fn project_names(team: &Option<Team>) -> Result<Vec<String>, String> {
     if let Some(team) = team {
         let project_names = team
             .projects
+            .clone()
+            .unwrap_or_default()
             .nodes
             .clone()
             .into_iter()
@@ -159,6 +144,8 @@ pub fn project(team: &Option<Team>, project_name: String) -> Result<Option<Proje
     if let Some(team) = team {
         match team
             .projects
+            .clone()
+            .unwrap_or_default()
             .nodes
             .clone()
             .into_iter()

@@ -11,7 +11,8 @@ use walkdir::WalkDir;
 
 use crate::config::Config;
 use crate::request;
-use crate::viewer::{Project, Team, Viewer};
+use crate::team::{Project, State, Team};
+use crate::viewer::Viewer;
 
 const ISSUE_CREATE_DOC: &str = "mutation (
                     $title: String!
@@ -42,7 +43,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
 #[derive(Deserialize)]
 struct Template {
     parent: ParentIssue,
-    children: Vec<ChildIssue>,
+    children: Option<Vec<ChildIssue>>,
     variables: HashMap<String, String>,
 }
 
@@ -86,6 +87,7 @@ pub fn evaluate(
     project: &Option<Project>,
     viewer: &Viewer,
     path: &String,
+    state: &State,
 ) -> Result<String, String> {
     if Path::is_dir(Path::new(&path)) {
         for entry in WalkDir::new(path)
@@ -100,11 +102,12 @@ pub fn evaluate(
                 viewer,
                 project,
                 &entry.path().to_str().unwrap().to_string(),
+                state,
             )?;
         }
         Ok("Done".to_string())
     } else {
-        create_issues(config, token, team, viewer, project, path)
+        create_issues(config, token, team, viewer, project, path, state)
     }
 }
 
@@ -115,6 +118,7 @@ fn create_issues(
     viewer: &Viewer,
     project: &Option<Project>,
     path: &String,
+    state: &State,
 ) -> Result<String, String> {
     let mut toml_string = String::new();
 
@@ -139,6 +143,7 @@ fn create_issues(
     let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
         .put_string("title", title)
         .put_string("teamId", team.id.clone())
+        .put_string("stateId", state.id.clone())
         .put_string("assigneeId", viewer.id.clone())
         .put_string("description", description)
         .maybe_put_string("projectId", project_id.clone())
@@ -148,7 +153,7 @@ fn create_issues(
 
     println!("- [{}] {}", id, url);
 
-    for child in children.iter() {
+    for child in children.unwrap_or_default().iter() {
         let title = fill_in_variables(child.title.clone(), variables.clone())?;
         let child_description_template = child.description.clone().unwrap_or_default();
         let child_description = fill_in_variables(child_description_template, variables.clone())?;
@@ -156,6 +161,7 @@ fn create_issues(
         let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
             .put_string("title", title)
             .put_string("teamId", team.id.clone())
+            .put_string("stateId", state.id.clone())
             .put_string("parentId", id.clone())
             .put_string("assigneeId", viewer.id.clone())
             .put_string("description", child_description)

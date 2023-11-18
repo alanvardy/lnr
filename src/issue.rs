@@ -6,12 +6,14 @@ use crate::{
     color,
     config::Config,
     input, request,
-    viewer::{self, Project, Team},
+    team::{Project, State, Team},
+    viewer,
 };
 
 const ISSUE_CREATE_DOC: &str = "mutation (
                     $title: String!
                     $teamId: String!
+                    $stateId: String!
                     $assigneeId: String
                     $description: String,
                     $projectId: String
@@ -20,6 +22,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                     input: {
                         title: $title
                         teamId: $teamId
+                        stateId: $stateId
                         assigneeId: $assigneeId
                         description: $description
                         projectId: $projectId
@@ -35,6 +38,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                         state {
                             id
                             name
+                            position
                             }
                         }
                     }
@@ -138,6 +142,7 @@ const ISSUE_BRANCH_VIEW_DOC: &str = "query (
                         state {
                             id
                             name
+                            position
                         }
                     }
                 }
@@ -180,6 +185,7 @@ const ISSUE_ID_VIEW_DOC: &str = "query (
                         state {
                             id
                             name
+                            position
                         }
                     }
                 }
@@ -302,12 +308,6 @@ struct User {
     displayName: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-struct State {
-    id: String,
-    name: String,
-}
-
 enum Format {
     View,
     List,
@@ -413,6 +413,7 @@ impl Display for Issue {
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
 pub fn create(
     config: &Config,
     token: &str,
@@ -420,12 +421,14 @@ pub fn create(
     description: String,
     team: Team,
     project: Option<Project>,
+    state: State,
     assignee_id: String,
 ) -> Result<String, String> {
     let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
         .put_string("title", title)
         .put_string("assigneeId", assignee_id)
         .put_string("teamId", team.id)
+        .put_string("stateId", state.id)
         .maybe_put_string("projectId", project.map(|p| p.id))
         .put_string("description", description)
         .run()?;
@@ -668,6 +671,7 @@ mod tests {
         let title = "Test".to_string();
         let description = "A Description".to_string();
         let team = test::fixtures::team();
+        let state = test::fixtures::state();
         let project = None;
         let assignee_id = "456".to_string();
 
@@ -678,6 +682,7 @@ mod tests {
             description,
             team,
             project,
+            state,
             assignee_id,
         );
         assert_eq!(
