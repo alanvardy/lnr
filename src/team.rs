@@ -57,7 +57,7 @@ pub struct StateNode {
 pub struct State {
     pub name: String,
     pub id: String,
-    pub position: u32,
+    pub position: f32,
 }
 
 impl Display for State {
@@ -75,7 +75,7 @@ pub fn get_states(config: &Config, token: &str, team: &Team) -> Result<Vec<State
     match result {
         Ok(body) => {
             let mut states = body.data.team.states.unwrap().nodes;
-            states.sort_unstable_by_key(|s| s.position);
+            states.sort_unstable_by_key(|s| s.position as i32);
             Ok(states)
         }
         Err(err) => Err(format!("Could not parse response for states: {err:?}")),

@@ -29,7 +29,7 @@ pub mod fixtures {
         State {
             name: "Thundercats".to_string(),
             id: "123456".to_string(),
-            position: 1,
+            position: 1.0,
         }
     }
 }

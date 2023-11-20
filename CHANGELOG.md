@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix bug on querying statuses (position can be a float)
+
 ## 2023-11-20 v0.1.8
 
 - Select status on `issue create` and `template evaluate`
