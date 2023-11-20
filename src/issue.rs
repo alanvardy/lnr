@@ -5,7 +5,9 @@ use std::{collections::HashMap, fmt::Display};
 use crate::{
     color,
     config::Config,
-    input, request,
+    input,
+    priority::{self, Priority},
+    request,
     team::{Project, State, Team},
     viewer,
 };
@@ -15,7 +17,8 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                     $teamId: String!
                     $stateId: String!
                     $assigneeId: String
-                    $description: String,
+                    $priority: Int
+                    $description: String
                     $projectId: String
                 ) {
                 issueCreate(
@@ -24,6 +27,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                         teamId: $teamId
                         stateId: $stateId
                         assigneeId: $assigneeId
+                        priority: $priority
                         description: $description
                         projectId: $projectId
                     }
@@ -423,11 +427,14 @@ pub fn create(
     project: Option<Project>,
     state: State,
     assignee_id: String,
+    priority: Priority,
 ) -> Result<String, String> {
+    let priority = priority::priority_to_int(&priority);
     let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
         .put_string("title", title)
         .put_string("assigneeId", assignee_id)
         .put_string("teamId", team.id)
+        .put_integer("priority", priority)
         .put_string("stateId", state.id)
         .maybe_put_string("projectId", project.map(|p| p.id))
         .put_string("description", description)
@@ -684,6 +691,7 @@ mod tests {
             project,
             state,
             assignee_id,
+            Priority::None,
         );
         assert_eq!(
             result,

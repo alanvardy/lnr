@@ -55,6 +55,11 @@ impl Gql {
 
         self
     }
+    pub fn put_integer(mut self, key: &str, value: u8) -> Gql {
+        self.variables.insert(key.to_string(), json!(value));
+
+        self
+    }
     pub fn maybe_put_string(mut self, key: &str, value: Option<String>) -> Gql {
         if let Some(value) = value {
             self.variables.insert(key.to_string(), Value::String(value));
