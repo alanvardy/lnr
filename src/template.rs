@@ -10,6 +10,7 @@ extern crate walkdir;
 use walkdir::WalkDir;
 
 use crate::config::Config;
+use crate::priority::{self, Priority};
 use crate::request;
 use crate::team::{Project, State, Team};
 use crate::viewer::Viewer;
@@ -17,6 +18,7 @@ use crate::viewer::Viewer;
 const ISSUE_CREATE_DOC: &str = "mutation (
                     $title: String!
                     $teamId: String!
+                    $priority: Int
                     $assigneeId: String
                     $description: String,
                     $parentId: String
@@ -25,6 +27,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                 issueCreate(
                     input: {
                         title: $title
+                        priority: $priority
                         teamId: $teamId
                         assigneeId: $assigneeId
                         description: $description
@@ -80,6 +83,7 @@ struct Issue {
 }
 
 /// We want to support a file path or a directory
+#[allow(clippy::too_many_arguments)]
 pub fn evaluate(
     config: &Config,
     token: &str,
@@ -88,6 +92,7 @@ pub fn evaluate(
     viewer: &Viewer,
     path: &String,
     state: &State,
+    priority: &Priority,
 ) -> Result<String, String> {
     if Path::is_dir(Path::new(&path)) {
         for entry in WalkDir::new(path)
@@ -103,14 +108,16 @@ pub fn evaluate(
                 project,
                 &entry.path().to_str().unwrap().to_string(),
                 state,
+                priority,
             )?;
         }
         Ok("Done".to_string())
     } else {
-        create_issues(config, token, team, viewer, project, path, state)
+        create_issues(config, token, team, viewer, project, path, state, priority)
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_issues(
     config: &Config,
     token: &str,
@@ -119,6 +126,7 @@ fn create_issues(
     project: &Option<Project>,
     path: &String,
     state: &State,
+    priority: &Priority,
 ) -> Result<String, String> {
     let mut toml_string = String::new();
 
@@ -139,10 +147,12 @@ fn create_issues(
     let description_template = parent.description.unwrap_or_default();
     let description = fill_in_variables(description_template, variables.clone())?;
     let project_id = project.clone().map(|p| p.id);
+    let priority = priority::priority_to_int(priority);
 
     let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
         .put_string("title", title)
         .put_string("teamId", team.id.clone())
+        .put_integer("priority", priority)
         .put_string("stateId", state.id.clone())
         .put_string("assigneeId", viewer.id.clone())
         .put_string("description", description)
@@ -163,6 +173,7 @@ fn create_issues(
             .put_string("teamId", team.id.clone())
             .put_string("stateId", state.id.clone())
             .put_string("parentId", id.clone())
+            .put_integer("priority", priority)
             .put_string("assigneeId", viewer.id.clone())
             .put_string("description", child_description)
             .maybe_put_string("projectId", project_id.clone())

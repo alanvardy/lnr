@@ -7,6 +7,7 @@ mod config;
 mod git;
 mod input;
 mod issue;
+mod priority;
 mod request;
 mod team;
 mod template;
@@ -16,6 +17,7 @@ mod viewer;
 use clap::{Arg, ArgMatches, Command};
 use colored::*;
 use config::Config;
+use priority::Priority;
 use team::{Project, State, Team};
 
 const APP: &str = "lnr";
@@ -139,6 +141,7 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
     let team_name = fetch_team_name(matches);
     let team = viewer::team(&viewer, team_name)?;
     let state = get_state(&config, &token, &team)?;
+    let priority = get_priority()?;
     let project = match has_flag(matches, "noproject") {
         true => None,
         false => get_project(&Some(team.clone()))?,
@@ -155,6 +158,7 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
         project,
         state,
         viewer.id,
+        priority,
     )
 }
 
@@ -252,6 +256,7 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
     let viewer = viewer::get_viewer(&config, &token)?;
     let team_name = fetch_team_name(matches);
     let team = viewer::team(&viewer, team_name)?;
+    let priority = get_priority()?;
     let state = get_state(&config, &token, &team)?;
     let path = fetch_string(
         matches,
@@ -264,7 +269,9 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
         false => get_project(&Some(team.clone()))?,
     };
 
-    template::evaluate(&config, &token, &team, &project, &viewer, &path, &state)
+    template::evaluate(
+        &config, &token, &team, &project, &viewer, &path, &state, &priority,
+    )
 }
 
 // --- VALUE HELPERS ---
@@ -313,6 +320,11 @@ fn get_project(team: &Option<Team>) -> Result<Option<Project>, String> {
 fn get_state(config: &Config, token: &str, team: &Team) -> Result<State, String> {
     let states = team::get_states(config, token, team)?;
     input::select("Select state", states, None)
+}
+
+fn get_priority() -> Result<Priority, String> {
+    let priorities = priority::all_priorities();
+    input::select("Select priority", priorities, None)
 }
 
 /// Checks if the flag was used

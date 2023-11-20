@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Select status on `issue create` and `template evaluate`
+- Select priority on `issue create` and `template evaluate`
 
 ## 2023-09-23 v0.1.7
 
