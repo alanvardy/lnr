@@ -22,6 +22,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                     $assigneeId: String
                     $description: String,
                     $parentId: String
+                    $stateId: String
                     $projectId: String
                 ) {
                 issueCreate(
@@ -30,6 +31,7 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                         priority: $priority
                         teamId: $teamId
                         assigneeId: $assigneeId
+                        stateId: $stateId
                         description: $description
                         parentId: $parentId
                         projectId: $projectId
