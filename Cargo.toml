@@ -32,5 +32,5 @@ walkdir = "2.3.3"
 handlebars = "5.1.1"
 
 [dev-dependencies]
-mockito = "1.2.0"
+mockito = "1.4.0"
 pretty_assertions = "1.4.0"
