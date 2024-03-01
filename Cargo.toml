@@ -28,7 +28,7 @@ inquire = { version = "0.7.0", features = ["editor"] }
 rand = "0.8.5"
 pretty_assertions = "1.4.0"
 toml = "0.8.10"
-walkdir = "2.3.3"
+walkdir = "2.5.0"
 handlebars = "5.1.1"
 
 [dev-dependencies]
