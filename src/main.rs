@@ -124,6 +124,10 @@ struct TemplateEvaluate {
     #[arg(short, long, default_value_t = false)]
     /// Do not prompt for a project
     noproject: bool,
+
+    #[arg(short = 'r', long)]
+    /// 1 (Low), 2 (Normal), 3 (High), or 4 (Urgent)
+    priority: Option<u8>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -135,6 +139,10 @@ struct IssueCreate {
     #[arg(short, long)]
     /// Description for issue
     description: Option<String>,
+
+    #[arg(short = 'r', long)]
+    /// 1 (Low), 2 (Normal), 3 (High), or 4 (Urgent)
+    priority: Option<u8>,
 
     #[arg(short = 'e', long)]
     /// Team name
@@ -210,13 +218,14 @@ fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
         description,
         team,
         noproject,
+        priority,
     } = args;
     let config = fetch_config(&cli)?;
     let token = fetch_token(&cli, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
     let team = viewer::team(&viewer, team)?;
     let state = get_state(&config, &token, &team)?;
-    let priority = get_priority()?;
+    let priority = get_priority(priority)?;
     let project = match noproject {
         true => None,
         false => get_project(&Some(team.clone()))?,
@@ -335,12 +344,13 @@ fn template_evaluate(cli: Cli, args: &TemplateEvaluate) -> Result<String, String
         path,
         team,
         noproject,
+        priority,
     } = args;
     let config = fetch_config(&cli)?;
     let token = fetch_token(&cli, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
     let team = viewer::team(&viewer, team)?;
-    let priority = get_priority()?;
+    let priority = get_priority(priority)?;
     let state = get_state(&config, &token, &team)?;
     let path = fetch_string(path, &config, "Enter path to TOML file or directory")?;
     let project = match *noproject {
@@ -399,21 +409,21 @@ fn get_state(config: &Config, token: &str, team: &Team) -> Result<State, String>
     input::select("Select state", states, None)
 }
 
-fn get_priority() -> Result<Priority, String> {
-    let priorities = priority::all_priorities();
-    input::select("Select priority", priorities, None)
+fn get_priority(priority: &Option<u8>) -> Result<Priority, String> {
+    match priority {
+        None => {
+            let priorities = priority::all_priorities();
+            input::select("Select priority", priorities, None)
+        }
+        Some(1) => Ok(Priority::Low),
+        Some(2) => Ok(Priority::Normal),
+        Some(3) => Ok(Priority::High),
+        Some(4) => Ok(Priority::Urgent),
+        Some(num) => Err(format!(
+            "Priority {num} is not valid. Must choose between 1 and 4."
+        )),
+    }
 }
-
-// #[cfg(not(tarpaulin_include))]
-// fn path_arg() -> Arg {
-//     Arg::new("path")
-//         .short('p')
-//         .long("path")
-//         .num_args(1)
-//         .required(false)
-//         .value_name("PATH")
-//         .help("Path to file or directory")
-// }
 
 #[cfg(not(tarpaulin_include))]
 fn fetch_string(value: &Option<String>, config: &Config, prompt: &str) -> Result<String, String> {
