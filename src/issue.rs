@@ -228,9 +228,9 @@ struct IssueData {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-#[allow(non_snake_case)]
 struct IssueBranchViewData {
-    issueVcsBranchSearch: Option<Issue>,
+    #[serde(rename = "issueVcsBranchSearch")]
+    issue_vcs_branch_search: Option<Issue>,
 }
 
 // ISSUE CREATE
@@ -240,9 +240,9 @@ struct IssueCreateResponse {
     data: Option<IssueCreateData>,
 }
 #[derive(Deserialize, Serialize, Debug)]
-#[allow(non_snake_case)]
 struct IssueCreateData {
-    issueCreate: IssueCreate,
+    #[serde(rename = "issueCreate")]
+    issue_create: IssueCreate,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -257,9 +257,9 @@ struct IssueUpdateResponse {
     data: Option<IssueUpdateData>,
 }
 #[derive(Deserialize, Serialize, Debug)]
-#[allow(non_snake_case)]
 struct IssueUpdateData {
-    issueUpdate: IssueUpdate,
+    #[serde(rename = "issueUpdate")]
+    issue_update: IssueUpdate,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -268,14 +268,15 @@ struct IssueUpdate {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-#[allow(non_snake_case)]
 struct Issue {
     id: String,
     state: State,
     identifier: String,
     url: String,
     title: String,
-    branchName: String,
+
+    #[serde(rename = "branchName")]
+    branch_name: String,
     description: Option<String>,
     children: Option<IssueListIssues>,
     comments: Option<CommentsConnection>,
@@ -287,11 +288,12 @@ struct CommentsConnection {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-#[allow(non_snake_case)]
 struct Comment {
     body: String,
-    createdAt: String,
-    editedAt: Option<String>,
+    #[serde(rename = "createdAt")]
+    created_at: String,
+    #[serde(rename = "editedAt")]
+    edited_at: Option<String>,
     url: String,
     user: User,
     children: Option<CommentsConnection>,
@@ -301,15 +303,15 @@ impl Comment {
     fn format(&self) -> String {
         let divider = color::green_string("----------------");
         let body = &self.body;
-        let user = color::cyan_string(&self.user.displayName);
-        let created_at = &self.createdAt;
+        let user = color::cyan_string(&self.user.display_name);
+        let created_at = &self.created_at;
         format!("\n{body}\n\n- {user} {created_at}\n\n{divider}")
     }
 }
 #[derive(Deserialize, Serialize, Debug)]
-#[allow(non_snake_case)]
 struct User {
-    displayName: String,
+    #[serde(rename = "displayName")]
+    display_name: String,
 }
 
 enum Format {
@@ -326,7 +328,7 @@ impl Issue {
             .clone()
             .unwrap_or_else(|| String::from("<No description>"));
         let state = &self.state.name;
-        let branch_name = &self.branchName;
+        let branch_name = &self.branch_name;
         let url = &self.url;
 
         let child_tickets = if self.is_parent() {
@@ -440,9 +442,11 @@ pub fn create(
         .put_string("description", description)
         .run()?;
 
-    let Issue { url, .. } = issue_create_response(response)?;
+    let Issue {
+        url, branch_name, ..
+    } = issue_create_response(response)?;
 
-    Ok(url)
+    Ok(format!("{url}\n{branch_name}"))
 }
 
 pub fn list(
@@ -556,7 +560,7 @@ fn issue_create_response(response: String) -> Result<Issue, String> {
         Ok(IssueCreateResponse {
             data:
                 Some(IssueCreateData {
-                    issueCreate: IssueCreate { issue },
+                    issue_create: IssueCreate { issue },
                 }),
         }) => Ok(issue),
         err => Err(format!(
@@ -575,13 +579,13 @@ fn issue_branch_view_response(response: String, branch: &String) -> Result<Issue
         Ok(IssueBranchViewResponse {
             data:
                 Some(IssueBranchViewData {
-                    issueVcsBranchSearch: Some(issue),
+                    issue_vcs_branch_search: Some(issue),
                 }),
         }) => Ok(issue),
         Ok(IssueBranchViewResponse {
             data:
                 Some(IssueBranchViewData {
-                    issueVcsBranchSearch: None,
+                    issue_vcs_branch_search: None,
                 }),
         }) => Err(format!("Branch {branch} not found")),
         err => Err(format!(
@@ -645,7 +649,7 @@ fn issue_update_response(response: String) -> Result<Issue, String> {
         Ok(IssueUpdateResponse {
             data:
                 Some(IssueUpdateData {
-                    issueUpdate: IssueUpdate { issue: Some(issue) },
+                    issue_update: IssueUpdate { issue: Some(issue) },
                 }),
         }) => Ok(issue),
         err => Err(format!(
@@ -695,7 +699,7 @@ mod tests {
         );
         assert_eq!(
             result,
-            Ok("https://linear.app/vardy/issue/BE-3354/test".to_string())
+            Ok("https://linear.app/vardy/issue/BE-3354/test\nbe-3354-test".to_string())
         );
         mock.assert();
     }

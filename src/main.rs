@@ -14,40 +14,179 @@ mod template;
 mod test;
 mod viewer;
 
-use clap::{Arg, ArgMatches, Command};
+use clap::{Parser, Subcommand};
 use colored::*;
 use config::Config;
 use priority::Priority;
 use team::{Project, State, Team};
 
-const APP: &str = "lnr";
+const NAME: &str = "lnr";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = "Alan Vardy <alan@vardy.cc>";
 const ABOUT: &str = "A tiny unofficial Linear client";
 
+#[derive(Parser, Clone)]
+#[command(name = NAME)]
+#[command(version = VERSION)]
+#[command(about = ABOUT, long_about = None)]
+#[command(author = AUTHOR, version)]
+#[command(arg_required_else_help(true))]
+struct Cli {
+    #[arg(short, long)]
+    /// Absolute path of configuration. Defaults to $XDG_CONFIG_HOME/lnr.cfg
+    config: Option<String>,
+
+    #[arg(short, long)]
+    /// You will be prompted at runtime if this isn't provided
+    org: Option<String>,
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum Commands {
+    #[command(subcommand)]
+    #[clap(alias = "i")]
+    /// (i) Commands for issues
+    Issue(IssueCommands),
+
+    #[command(subcommand)]
+    #[clap(alias = "o")]
+    /// (o) Commands for organizations
+    Org(OrgCommands),
+
+    #[command(subcommand)]
+    #[clap(alias = "t")]
+    /// (t) Commands for working with templates
+    Template(TemplateCommands),
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum IssueCommands {
+    #[clap(alias = "c")]
+    /// (c) Create a new issue
+    Create(IssueCreate),
+
+    #[clap(alias = "e")]
+    /// (e) Edit the issue for current branch
+    Edit(IssueEdit),
+
+    #[clap(alias = "v")]
+    /// (v) View the issue for current branch
+    View(IssueView),
+
+    #[clap(alias = "l")]
+    /// (l) List issues, maximum of 50. Returns issues assigned to user that are Todo or In Progress
+    List(IssueList),
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum OrgCommands {
+    #[clap(alias = "a")]
+    /// (a) Add an organization and token to config
+    Add(OrgAdd),
+
+    #[clap(alias = "r")]
+    /// (r) Remove an organization and token from config
+    Remove(OrgRemove),
+
+    #[clap(alias = "l")]
+    /// (l) List organizations in config
+    List(OrgList),
+}
+
+#[derive(Parser, Debug, Clone)]
+struct OrgAdd {}
+
+#[derive(Parser, Debug, Clone)]
+struct OrgRemove {}
+
+#[derive(Parser, Debug, Clone)]
+struct OrgList {}
+
+#[derive(Subcommand, Debug, Clone)]
+enum TemplateCommands {
+    #[clap(alias = "e")]
+    /// (e) Create issues from a TOML file
+    Evaluate(TemplateEvaluate),
+}
+
+#[derive(Parser, Debug, Clone)]
+struct TemplateEvaluate {
+    #[arg(short, long)]
+    /// Path to file or directory
+    path: Option<String>,
+
+    #[arg(short = 'e', long)]
+    /// Team name
+    team: Option<String>,
+
+    #[arg(short, long, default_value_t = false)]
+    /// Do not prompt for a project
+    noproject: bool,
+}
+
+#[derive(Parser, Debug, Clone)]
+struct IssueCreate {
+    #[arg(short, long)]
+    /// Title for issue
+    title: Option<String>,
+
+    #[arg(short, long)]
+    /// Description for issue
+    description: Option<String>,
+
+    #[arg(short = 'e', long)]
+    /// Team name
+    team: Option<String>,
+
+    #[arg(short, long, default_value_t = false)]
+    /// Do not prompt for a project
+    noproject: bool,
+}
+
+#[derive(Parser, Debug, Clone)]
+struct IssueEdit {}
+
+#[derive(Parser, Debug, Clone)]
+struct IssueView {
+    #[arg(short, long, default_value_t = false)]
+    /// Select ticket from list view
+    select: bool,
+}
+
+#[derive(Parser, Debug, Clone)]
+struct IssueList {
+    #[arg(short = 'e', long)]
+    /// Team name
+    team: Option<String>,
+
+    #[arg(short, long, default_value_t = false)]
+    /// Don't prompt for project
+    noproject: bool,
+
+    #[arg(short = 't', long, default_value_t = false)]
+    /// Don't prompt for team
+    noteam: bool,
+}
+
 #[cfg(not(tarpaulin_include))]
 fn main() {
-    let matches = cmd().get_matches();
+    let cli = Cli::parse();
 
-    let result = match matches.subcommand() {
-        Some(("issue", issue_matches)) => match issue_matches.subcommand() {
-            Some(("create", m)) => issue_create(m),
-            Some(("view", m)) => issue_view(m),
-            Some(("edit", m)) => issue_edit(m),
-            Some(("list", m)) => issue_list(m),
-            _ => unreachable!(),
-        },
-        Some(("org", issue_matches)) => match issue_matches.subcommand() {
-            Some(("add", m)) => organization_add(m),
-            Some(("remove", m)) => organization_remove(m),
-            Some(("list", m)) => organization_list(m),
-            _ => unreachable!(),
-        },
-        Some(("template", issue_matches)) => match issue_matches.subcommand() {
-            Some(("evaluate", m)) => template_evaluate(m),
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
+    let result = match &cli.command {
+        Commands::Issue(IssueCommands::Create(args)) => issue_create(cli.clone(), args),
+        Commands::Issue(IssueCommands::Edit(args)) => issue_edit(cli.clone(), args),
+        Commands::Issue(IssueCommands::View(args)) => issue_view(cli.clone(), args),
+        Commands::Issue(IssueCommands::List(args)) => issue_list(cli.clone(), args),
+
+        Commands::Org(OrgCommands::Add(args)) => org_add(cli.clone(), args),
+        Commands::Org(OrgCommands::Remove(args)) => org_remove(cli.clone(), args),
+        Commands::Org(OrgCommands::List(args)) => org_list(cli.clone(), args),
+
+        Commands::Template(TemplateCommands::Evaluate(args)) => {
+            template_evaluate(cli.clone(), args)
+        }
     };
 
     match result {
@@ -62,92 +201,28 @@ fn main() {
     }
 }
 
-fn cmd() -> Command {
-    Command::new(APP)
-        .version(VERSION)
-        .author(AUTHOR)
-        .about(ABOUT)
-        .arg_required_else_help(true)
-        .propagate_version(true)
-        .subcommands([
-            Command::new("issue")
-                .arg_required_else_help(true)
-                .propagate_version(true)
-                .subcommand_required(true)
-                .subcommands([
-                    Command::new("create")
-                        .about("Create a new issue")
-                        .arg(title_arg())
-                        .arg(team_arg())
-                        .arg(org_arg())
-                        .arg(description_arg())
-                         .arg(flag_arg("noproject", 'n',  "Do not prompt for a project"))
-                        .arg(config_arg()),
-                    Command::new("edit")
-                        .about("Edit the issue for current branch")
-                        .arg(org_arg())
-                        .arg(config_arg()),
-                    Command::new("list")
-                        .about("List issues, maximum of 50. Returns issues assigned to user that are Todo or In Progress")
-                        .arg(org_arg())
-                        .arg(team_arg())
-                         .arg(flag_arg("noproject", 'n',  "Do not prompt for a project"))
-                         .arg(flag_arg("noteam", 't',  "Do not prompt for a team"))
-                        .arg(config_arg()),
-                    Command::new("view")
-                        .about("View the issue for current branch")
-                         .arg(flag_arg("select", 's',  "Select ticket from list view"))
-                        .arg(org_arg())
-                        .arg(config_arg()),
-                ]),
-            Command::new("org")
-                .arg_required_else_help(true)
-                .propagate_version(true)
-                .subcommand_required(true)
-                .subcommands([
-                    Command::new("add")
-                        .about("Add an organization and token to config")
-                        .arg(config_arg()),
-                    Command::new("remove")
-                        .about("Remove an organization and token from config")
-                        .arg(config_arg()),
-                    Command::new("list")
-                        .about("List organizations and tokens in config")
-                        .arg(config_arg()),
-                ]),
-            Command::new("template")
-                .arg_required_else_help(true)
-                .propagate_version(true)
-                .subcommand_required(true)
-                .subcommands([
-                    Command::new("evaluate")
-                        .about("create issues from a TOML file")
-                        .arg(team_arg())
-                        .arg(org_arg())
-                        .arg(path_arg())
-                         .arg(flag_arg("noproject", 'n',  "Do not prompt for a project"))
-                        .arg(config_arg()),
-                ]),
-        ])
-}
-
 // --- ISSUES ---
 
 #[cfg(not(tarpaulin_include))]
-fn issue_create(matches: &ArgMatches) -> Result<String, String> {
-    let config = fetch_config(matches)?;
-    let token = fetch_token(matches, &config)?;
+fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
+    let IssueCreate {
+        title,
+        description,
+        team,
+        noproject,
+    } = args;
+    let config = fetch_config(&cli)?;
+    let token = fetch_token(&cli, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
-    let team_name = fetch_team_name(matches);
-    let team = viewer::team(&viewer, team_name)?;
+    let team = viewer::team(&viewer, team)?;
     let state = get_state(&config, &token, &team)?;
     let priority = get_priority()?;
-    let project = match has_flag(matches, "noproject") {
+    let project = match noproject {
         true => None,
         false => get_project(&Some(team.clone()))?,
     };
-    let title = fetch_string(matches, &config, "title", "Title")?;
-    let description = fetch_editor(matches, &config, "description", "Description")?;
+    let title = fetch_string(title, &config, "Title")?;
+    let description = fetch_editor(description, &config, "Description")?;
 
     issue::create(
         &config,
@@ -163,10 +238,11 @@ fn issue_create(matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_view(matches: &ArgMatches) -> Result<String, String> {
-    let config = fetch_config(matches)?;
-    let token = fetch_token(matches, &config)?;
-    if has_flag(matches, "select") {
+fn issue_view(cli: Cli, args: &IssueView) -> Result<String, String> {
+    let IssueView { select } = args;
+    let config = fetch_config(&cli)?;
+    let token = fetch_token(&cli, &config)?;
+    if *select {
         issue::view(&config, &token, None)
     } else {
         let branch = git::get_branch()?;
@@ -175,27 +251,31 @@ fn issue_view(matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_edit(matches: &ArgMatches) -> Result<String, String> {
-    let config = fetch_config(matches)?;
-    let token = fetch_token(matches, &config)?;
+fn issue_edit(cli: Cli, _args: &IssueEdit) -> Result<String, String> {
+    let config = fetch_config(&cli)?;
+    let token = fetch_token(&cli, &config)?;
 
     let branch = git::get_branch()?;
     issue::edit(&config, &token, branch)
 }
 
 #[cfg(not(tarpaulin_include))]
-fn issue_list(matches: &ArgMatches) -> Result<String, String> {
-    let config = fetch_config(matches)?;
-    let token = fetch_token(matches, &config)?;
+fn issue_list(cli: Cli, args: &IssueList) -> Result<String, String> {
+    let IssueList {
+        team,
+        noteam,
+        noproject,
+    } = args;
+    let config = fetch_config(&cli)?;
+    let token = fetch_token(&cli, &config)?;
 
     let viewer = viewer::get_viewer(&config, &token)?;
 
-    let team_name = fetch_team_name(matches);
-    let team = match has_flag(matches, "noteam") {
+    let team = match *noteam {
         true => None,
-        false => Some(viewer::team(&viewer, team_name)?),
+        false => Some(viewer::team(&viewer, team)?),
     };
-    let project = match has_flag(matches, "noproject") {
+    let project = match *noproject {
         true => None,
         false => get_project(&team)?,
     };
@@ -206,8 +286,8 @@ fn issue_list(matches: &ArgMatches) -> Result<String, String> {
 // --- ORGANIZATIONS ---
 
 #[cfg(not(tarpaulin_include))]
-fn organization_add(matches: &ArgMatches) -> Result<String, String> {
-    let mut config = fetch_config(matches)?;
+fn org_add(cli: Cli, _args: &OrgAdd) -> Result<String, String> {
+    let mut config = fetch_config(&cli)?;
     let name = input::string("Input organization name", None)?;
     let token = input::string("Input organization token", None)?;
     config.add_organization(name, token);
@@ -215,8 +295,8 @@ fn organization_add(matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn organization_list(matches: &ArgMatches) -> Result<String, String> {
-    let config = fetch_config(matches)?;
+fn org_list(cli: Cli, _args: &OrgList) -> Result<String, String> {
+    let config = fetch_config(&cli)?;
     let orgs = config
         .organizations
         .into_iter()
@@ -234,8 +314,8 @@ fn organization_list(matches: &ArgMatches) -> Result<String, String> {
 }
 
 #[cfg(not(tarpaulin_include))]
-fn organization_remove(matches: &ArgMatches) -> Result<String, String> {
-    let mut config = fetch_config(matches)?;
+fn org_remove(cli: Cli, _args: &OrgRemove) -> Result<String, String> {
+    let mut config = fetch_config(&cli)?;
     let org_names = config.organization_names();
     if org_names.is_empty() {
         let command = color::cyan_string("org add");
@@ -250,21 +330,20 @@ fn organization_remove(matches: &ArgMatches) -> Result<String, String> {
 // --- TEMPLATES ---
 
 #[cfg(not(tarpaulin_include))]
-fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
-    let config = fetch_config(matches)?;
-    let token = fetch_token(matches, &config)?;
+fn template_evaluate(cli: Cli, args: &TemplateEvaluate) -> Result<String, String> {
+    let TemplateEvaluate {
+        path,
+        team,
+        noproject,
+    } = args;
+    let config = fetch_config(&cli)?;
+    let token = fetch_token(&cli, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
-    let team_name = fetch_team_name(matches);
-    let team = viewer::team(&viewer, team_name)?;
+    let team = viewer::team(&viewer, team)?;
     let priority = get_priority()?;
     let state = get_state(&config, &token, &team)?;
-    let path = fetch_string(
-        matches,
-        &config,
-        "path",
-        "Enter path to TOML file or directory",
-    )?;
-    let project = match has_flag(matches, "noproject") {
+    let path = fetch_string(path, &config, "Enter path to TOML file or directory")?;
+    let project = match *noproject {
         true => None,
         false => get_project(&Some(team.clone()))?,
     };
@@ -277,16 +356,14 @@ fn template_evaluate(matches: &ArgMatches) -> Result<String, String> {
 // --- VALUE HELPERS ---
 
 #[cfg(not(tarpaulin_include))]
-fn fetch_config(matches: &ArgMatches) -> Result<Config, String> {
+fn fetch_config(cli: &Cli) -> Result<Config, String> {
     check_for_latest_version();
-    let config_path = matches.get_one::<String>("config").map(|s| s.to_owned());
-
-    config::get_or_create(config_path)
+    config::get_or_create(cli.config.clone())
 }
 
 #[cfg(not(tarpaulin_include))]
-fn fetch_token(matches: &ArgMatches, config: &Config) -> Result<String, String> {
-    let org_name = matches.get_one::<String>("org").map(|s| s.to_owned());
+fn fetch_token(cli: &Cli, config: &Config) -> Result<String, String> {
+    let org_name = cli.org.clone();
     match org_name {
         Some(string) => config.token(&string),
         None => {
@@ -327,121 +404,31 @@ fn get_priority() -> Result<Priority, String> {
     input::select("Select priority", priorities, None)
 }
 
-/// Checks if the flag was used
-#[cfg(not(tarpaulin_include))]
-fn has_flag(matches: &ArgMatches, id: &'static str) -> bool {
-    matches.get_one::<String>(id) == Some(&String::from("yes"))
-}
-#[cfg(not(tarpaulin_include))]
-fn config_arg() -> Arg {
-    Arg::new("config")
-        .short('c')
-        .long("config")
-        .num_args(1)
-        .required(false)
-        .value_name("CONFIGURATION PATH")
-        .help("Absolute path of configuration. Defaults to $XDG_CONFIG_HOME/lnr.cfg")
-}
+// #[cfg(not(tarpaulin_include))]
+// fn path_arg() -> Arg {
+//     Arg::new("path")
+//         .short('p')
+//         .long("path")
+//         .num_args(1)
+//         .required(false)
+//         .value_name("PATH")
+//         .help("Path to file or directory")
+// }
 
 #[cfg(not(tarpaulin_include))]
-fn org_arg() -> Arg {
-    Arg::new("org")
-        .short('o')
-        .long("org")
-        .num_args(1)
-        .required(false)
-        .value_name("organization name")
-        .help("You will be promped at runtime if this isn't provided")
-}
-
-#[cfg(not(tarpaulin_include))]
-fn title_arg() -> Arg {
-    Arg::new("title")
-        .short('t')
-        .long("title")
-        .num_args(1)
-        .required(false)
-        .value_name("TITLE TEXT")
-        .help("Title for issue")
-}
-
-#[cfg(not(tarpaulin_include))]
-fn team_arg() -> Arg {
-    Arg::new("team")
-        .short('e')
-        .long("team")
-        .num_args(1)
-        .required(false)
-        .value_name("TEAM NAME")
-        .help("Team name")
-}
-
-#[cfg(not(tarpaulin_include))]
-fn path_arg() -> Arg {
-    Arg::new("path")
-        .short('p')
-        .long("path")
-        .num_args(1)
-        .required(false)
-        .value_name("PATH")
-        .help("Path to file or directory")
-}
-
-#[cfg(not(tarpaulin_include))]
-fn description_arg() -> Arg {
-    Arg::new("description")
-        .short('d')
-        .long("description")
-        .num_args(1)
-        .required(false)
-        .value_name("DESCRIPTION TEXT")
-        .help("Description for issue")
-}
-
-#[cfg(not(tarpaulin_include))]
-fn flag_arg(id: &'static str, short: char, help: &'static str) -> Arg {
-    Arg::new(id)
-        .short(short)
-        .long(id)
-        .value_parser(["yes", "no"])
-        .num_args(0..1)
-        .default_value("no")
-        .default_missing_value("yes")
-        .required(false)
-        .help(help)
-}
-
-#[cfg(not(tarpaulin_include))]
-fn fetch_string(
-    matches: &ArgMatches,
-    config: &Config,
-    field: &str,
-    prompt: &str,
-) -> Result<String, String> {
-    let argument_content = matches.get_one::<String>(field).map(|s| s.to_owned());
-    match argument_content {
-        Some(string) => Ok(string),
+fn fetch_string(value: &Option<String>, config: &Config, prompt: &str) -> Result<String, String> {
+    match value {
+        Some(string) => Ok(string.to_owned()),
         None => input::string(prompt, config.mock_string.clone()),
     }
 }
 
 #[cfg(not(tarpaulin_include))]
-fn fetch_editor(
-    matches: &ArgMatches,
-    config: &Config,
-    field: &str,
-    prompt: &str,
-) -> Result<String, String> {
-    let argument_content = matches.get_one::<String>(field).map(|s| s.to_owned());
-    match argument_content {
-        Some(string) => Ok(string),
+fn fetch_editor(value: &Option<String>, config: &Config, prompt: &str) -> Result<String, String> {
+    match value {
+        Some(string) => Ok(string.to_owned()),
         None => input::editor(prompt, "", config.mock_string.clone()),
     }
-}
-
-#[cfg(not(tarpaulin_include))]
-fn fetch_team_name(matches: &ArgMatches) -> Option<String> {
-    matches.get_one::<String>("team").map(|s| s.to_owned())
 }
 
 fn check_for_latest_version() {
@@ -449,21 +436,25 @@ fn check_for_latest_version() {
         Ok(version) if version.as_str() != VERSION => {
             println!(
                 "Latest {} version is {}, found {}.\nRun {} to update if you installed with Cargo",
-                APP,
+                NAME,
                 version,
                 VERSION,
-                format!("cargo install {APP} --force").bright_cyan()
+                format!("cargo install {NAME} --force").bright_cyan()
             );
         }
         Ok(_) => (),
         Err(err) => println!(
             "{}, {:?}",
-            format!("Could not fetch {APP} version from Cargo.io").red(),
+            format!("Could not fetch {NAME} version from Cargo.io").red(),
             err
         ),
     };
 }
+
 #[test]
 fn verify_cmd() {
-    cmd().debug_assert();
+    use clap::CommandFactory;
+    // Mostly checks that it is not going to throw an exception because of conflicting short arguments
+    Cli::try_parse().err();
+    Cli::command().debug_assert();
 }

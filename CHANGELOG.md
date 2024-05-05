@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Update API to use structs
+- Print branch name as well as URL when creating issues
+
 ## 2023-11-20 v0.1.9
 
 - Fix bug on querying statuses (position can be a float)
