@@ -117,11 +117,11 @@ pub fn team_by_name(viewer: &Viewer, team_name: &String) -> Result<Team, String>
     }
 }
 
-pub fn team(viewer: &Viewer, team_name: Option<String>) -> Result<Team, String> {
+pub fn team(viewer: &Viewer, team_name: &Option<String>) -> Result<Team, String> {
     let mut team_names = team_names(viewer)?;
 
     if let Some(name) = team_name {
-        return team_by_name(viewer, &name);
+        return team_by_name(viewer, name);
     }
 
     team_names.sort();
