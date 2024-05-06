@@ -128,6 +128,10 @@ struct TemplateEvaluate {
     #[arg(short = 'r', long)]
     /// 1 (Low), 2 (Normal), 3 (High), or 4 (Urgent)
     priority: Option<u8>,
+
+    #[arg(short, long)]
+    /// i.e. Backlog or Todo
+    state: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -151,6 +155,10 @@ struct IssueCreate {
     #[arg(short, long, default_value_t = false)]
     /// Do not prompt for a project
     noproject: bool,
+
+    #[arg(short, long)]
+    /// i.e. Backlog or Todo
+    state: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -219,12 +227,13 @@ fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
         team,
         noproject,
         priority,
+        state,
     } = args;
     let config = fetch_config(&cli)?;
     let token = fetch_token(&cli, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
     let team = viewer::team(&viewer, team)?;
-    let state = get_state(&config, &token, &team)?;
+    let state = get_state(&config, &token, &team, state)?;
     let priority = get_priority(priority)?;
     let project = match noproject {
         true => None,
@@ -345,13 +354,14 @@ fn template_evaluate(cli: Cli, args: &TemplateEvaluate) -> Result<String, String
         team,
         noproject,
         priority,
+        state,
     } = args;
     let config = fetch_config(&cli)?;
     let token = fetch_token(&cli, &config)?;
     let viewer = viewer::get_viewer(&config, &token)?;
     let team = viewer::team(&viewer, team)?;
     let priority = get_priority(priority)?;
-    let state = get_state(&config, &token, &team)?;
+    let state = get_state(&config, &token, &team, state)?;
     let path = fetch_string(path, &config, "Enter path to TOML file or directory")?;
     let project = match *noproject {
         true => None,
@@ -404,9 +414,28 @@ fn get_project(team: &Option<Team>) -> Result<Option<Project>, String> {
     viewer::project(team, project_name)
 }
 
-fn get_state(config: &Config, token: &str, team: &Team) -> Result<State, String> {
+fn get_state(
+    config: &Config,
+    token: &str,
+    team: &Team,
+    state: &Option<String>,
+) -> Result<State, String> {
     let states = team::get_states(config, token, team)?;
-    input::select("Select state", states, None)
+
+    match state {
+        None => input::select("Select state", states, None),
+        Some(state_name) => {
+            let matching_state = states
+                .into_iter()
+                .filter(|s| s.name == *state_name)
+                .collect::<Vec<State>>();
+
+            match matching_state.first() {
+                None => Err(format!("{state_name} state not found")),
+                Some(state) => Ok(state.to_owned()),
+            }
+        }
+    }
 }
 
 fn get_priority(priority: &Option<u8>) -> Result<Priority, String> {
