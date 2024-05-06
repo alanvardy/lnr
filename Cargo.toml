@@ -24,7 +24,7 @@ chrono-tz = "0.8.4"
 colored = "2.0.4"
 clap = { version = "4.5.4", features = ["derive"] }
 spinners = "4.1.0"
-inquire = { version = "0.6.2", features = ["editor"] }
+inquire = { version = "0.7.5", features = ["editor"] }
 rand = "0.8.5"
 pretty_assertions = "1.4.0"
 toml = "0.8.8"
