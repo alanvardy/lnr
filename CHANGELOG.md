@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2024-05-06 v0.2.0
+
 - **BREAKING CHANGE** Update API to use structs. There will be a few small differences.
 - Print branch name as well as URL when creating issues
 - Add `priority` flag to `issue create` and `template evaluate`
