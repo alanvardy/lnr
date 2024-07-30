@@ -186,7 +186,6 @@ struct IssueList {
     noteam: bool,
 }
 
-#[cfg(not(tarpaulin_include))]
 fn main() {
     let cli = Cli::parse();
 
@@ -219,7 +218,6 @@ fn main() {
 
 // --- ISSUES ---
 
-#[cfg(not(tarpaulin_include))]
 fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
     let IssueCreate {
         title,
@@ -255,7 +253,6 @@ fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
     )
 }
 
-#[cfg(not(tarpaulin_include))]
 fn issue_view(cli: Cli, args: &IssueView) -> Result<String, String> {
     let IssueView { select } = args;
     let config = fetch_config(&cli)?;
@@ -268,7 +265,6 @@ fn issue_view(cli: Cli, args: &IssueView) -> Result<String, String> {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn issue_edit(cli: Cli, _args: &IssueEdit) -> Result<String, String> {
     let config = fetch_config(&cli)?;
     let token = fetch_token(&cli, &config)?;
@@ -277,7 +273,6 @@ fn issue_edit(cli: Cli, _args: &IssueEdit) -> Result<String, String> {
     issue::edit(&config, &token, branch)
 }
 
-#[cfg(not(tarpaulin_include))]
 fn issue_list(cli: Cli, args: &IssueList) -> Result<String, String> {
     let IssueList {
         team,
@@ -303,7 +298,6 @@ fn issue_list(cli: Cli, args: &IssueList) -> Result<String, String> {
 
 // --- ORGANIZATIONS ---
 
-#[cfg(not(tarpaulin_include))]
 fn org_add(cli: Cli, _args: &OrgAdd) -> Result<String, String> {
     let mut config = fetch_config(&cli)?;
     let name = input::string("Input organization name", None)?;
@@ -312,7 +306,6 @@ fn org_add(cli: Cli, _args: &OrgAdd) -> Result<String, String> {
     config.save()
 }
 
-#[cfg(not(tarpaulin_include))]
 fn org_list(cli: Cli, _args: &OrgList) -> Result<String, String> {
     let config = fetch_config(&cli)?;
     let orgs = config
@@ -331,7 +324,6 @@ fn org_list(cli: Cli, _args: &OrgList) -> Result<String, String> {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn org_remove(cli: Cli, _args: &OrgRemove) -> Result<String, String> {
     let mut config = fetch_config(&cli)?;
     let org_names = config.organization_names();
@@ -347,7 +339,6 @@ fn org_remove(cli: Cli, _args: &OrgRemove) -> Result<String, String> {
 
 // --- TEMPLATES ---
 
-#[cfg(not(tarpaulin_include))]
 fn template_evaluate(cli: Cli, args: &TemplateEvaluate) -> Result<String, String> {
     let TemplateEvaluate {
         path,
@@ -375,13 +366,11 @@ fn template_evaluate(cli: Cli, args: &TemplateEvaluate) -> Result<String, String
 
 // --- VALUE HELPERS ---
 
-#[cfg(not(tarpaulin_include))]
 fn fetch_config(cli: &Cli) -> Result<Config, String> {
     check_for_latest_version();
     config::get_or_create(cli.config.clone())
 }
 
-#[cfg(not(tarpaulin_include))]
 fn fetch_token(cli: &Cli, config: &Config) -> Result<String, String> {
     let org_name = cli.org.clone();
     match org_name {
@@ -454,7 +443,6 @@ fn get_priority(priority: &Option<u8>) -> Result<Priority, String> {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn fetch_string(value: &Option<String>, config: &Config, prompt: &str) -> Result<String, String> {
     match value {
         Some(string) => Ok(string.to_owned()),
@@ -462,7 +450,6 @@ fn fetch_string(value: &Option<String>, config: &Config, prompt: &str) -> Result
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn fetch_editor(value: &Option<String>, config: &Config, prompt: &str) -> Result<String, String> {
     match value {
         Some(string) => Ok(string.to_owned()),
