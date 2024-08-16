@@ -2,13 +2,15 @@ extern crate clap;
 #[cfg(test)]
 extern crate matches;
 
-pub mod config;
-pub mod issue;
-pub mod request;
-pub mod team;
-pub mod template;
-pub mod viewer;
+// Linear related
+mod config;
+mod issue;
+mod request;
+mod team;
+mod template;
+mod viewer;
 
+// Internal use
 mod color;
 mod git;
 mod input;
@@ -26,13 +28,98 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = "Alan Vardy <alan@vardy.cc>";
 const ABOUT: &str = "A tiny unofficial Linear client";
 
+/// Wrapper around `Cli` to provide a more ergonomic interface.
+pub struct LinearClient {
+    cli: Cli,
+}
+
+impl LinearClient {
+    /// Creates a new `LinearClient` instance with the provided configuration path and organization name.
+    pub fn new(config_path: Option<String>, org_name: &str) -> Self {
+        Self {
+            cli: Cli {
+                config: config_path,
+                org: Some(org_name.to_string()),
+
+                // A dummy command is fine since this should not end up being used.
+                command: Commands::Issue(IssueCommands::List(IssueList {
+                    team: None,
+                    noteam: false,
+                    noproject: false,
+                })),
+            },
+        }
+    }
+
+    /// Creates a new issue using the provided arguments.
+    pub fn issue_create(&self, args: &IssueCreate) -> Result<String, String> {
+        issue_create(self.cli.clone(), args)
+    }
+
+    /// Views the issue for the current branch, or allows selecting an issue if `select` is true.
+    pub fn issue_view(&self, args: &IssueView) -> Result<String, String> {
+        issue_view(self.cli.clone(), args)
+    }
+
+    /// Edits the issue associated with the current branch.
+    pub fn issue_edit(&self, args: &IssueEdit) -> Result<String, String> {
+        issue_edit(self.cli.clone(), args)
+    }
+
+    /// Lists issues assigned to the user, filtered by the provided arguments.
+    pub fn issue_list(&self, args: &IssueList) -> Result<String, String> {
+        issue_list(self.cli.clone(), args)
+    }
+
+    /// Adds an organization and token to the configuration.
+    pub fn org_add(&self, args: &OrgAdd) -> Result<String, String> {
+        org_add(self.cli.clone(), args)
+    }
+
+    /// Lists all organizations in the configuration.
+    pub fn org_list(&self, args: &OrgList) -> Result<String, String> {
+        org_list(self.cli.clone(), args)
+    }
+
+    /// Removes an organization and token from the configuration.
+    pub fn org_remove(&self, args: &OrgRemove) -> Result<String, String> {
+        org_remove(self.cli.clone(), args)
+    }
+
+    /// Evaluates a template and creates issues based on the provided TOML file or directory.
+    pub fn template_evaluate(&self, args: &TemplateEvaluate) -> Result<String, String> {
+        template_evaluate(self.cli.clone(), args)
+    }
+
+    /// Retrieves the project associated with the provided team.
+    pub fn get_project(&self, team: &Option<Team>) -> Result<Option<Project>, String> {
+        get_project(team)
+    }
+
+    /// Retrieves the state associated with the provided team and state name.
+    pub fn get_state(
+        &self,
+        config: &Config,
+        token: &str,
+        team: &Team,
+        state: &Option<String>,
+    ) -> Result<State, String> {
+        get_state(config, token, team, state)
+    }
+
+    /// Retrieves the priority based on the provided priority level.
+    pub fn get_priority(&self, priority: &Option<u8>) -> Result<Priority, String> {
+        get_priority(priority)
+    }
+}
+
 #[derive(Parser, Clone)]
 #[command(name = NAME)]
 #[command(version = VERSION)]
 #[command(about = ABOUT, long_about = None)]
 #[command(author = AUTHOR, version)]
 #[command(arg_required_else_help(true))]
-struct Cli {
+pub struct Cli {
     #[arg(short, long)]
     /// Absolute path of configuration. Defaults to $XDG_CONFIG_HOME/lnr.cfg
     config: Option<String>,
@@ -97,13 +184,13 @@ enum OrgCommands {
 }
 
 #[derive(Parser, Debug, Clone)]
-struct OrgAdd {}
+pub struct OrgAdd {}
 
 #[derive(Parser, Debug, Clone)]
-struct OrgRemove {}
+pub struct OrgRemove {}
 
 #[derive(Parser, Debug, Clone)]
-struct OrgList {}
+pub struct OrgList {}
 
 #[derive(Subcommand, Debug, Clone)]
 enum TemplateCommands {
@@ -113,7 +200,7 @@ enum TemplateCommands {
 }
 
 #[derive(Parser, Debug, Clone)]
-struct TemplateEvaluate {
+pub struct TemplateEvaluate {
     #[arg(short, long)]
     /// Path to file or directory
     path: Option<String>,
@@ -136,7 +223,7 @@ struct TemplateEvaluate {
 }
 
 #[derive(Parser, Debug, Clone)]
-struct IssueCreate {
+pub struct IssueCreate {
     #[arg(short, long)]
     /// Title for issue
     title: Option<String>,
@@ -163,17 +250,17 @@ struct IssueCreate {
 }
 
 #[derive(Parser, Debug, Clone)]
-struct IssueEdit {}
+pub struct IssueEdit {}
 
 #[derive(Parser, Debug, Clone)]
-struct IssueView {
+pub struct IssueView {
     #[arg(short, long, default_value_t = false)]
     /// Select ticket from list view
     select: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
-struct IssueList {
+pub struct IssueList {
     #[arg(short = 'e', long)]
     /// Team name
     team: Option<String>,
@@ -185,36 +272,6 @@ struct IssueList {
     #[arg(short = 't', long, default_value_t = false)]
     /// Don't prompt for team
     noteam: bool,
-}
-
-fn main() {
-    let cli = Cli::parse();
-
-    let result = match &cli.command {
-        Commands::Issue(IssueCommands::Create(args)) => issue_create(cli.clone(), args),
-        Commands::Issue(IssueCommands::Edit(args)) => issue_edit(cli.clone(), args),
-        Commands::Issue(IssueCommands::View(args)) => issue_view(cli.clone(), args),
-        Commands::Issue(IssueCommands::List(args)) => issue_list(cli.clone(), args),
-
-        Commands::Org(OrgCommands::Add(args)) => org_add(cli.clone(), args),
-        Commands::Org(OrgCommands::Remove(args)) => org_remove(cli.clone(), args),
-        Commands::Org(OrgCommands::List(args)) => org_list(cli.clone(), args),
-
-        Commands::Template(TemplateCommands::Evaluate(args)) => {
-            template_evaluate(cli.clone(), args)
-        }
-    };
-
-    match result {
-        Ok(text) => {
-            println!("{text}");
-            std::process::exit(0);
-        }
-        Err(e) => {
-            println!("{}", e.red());
-            std::process::exit(1);
-        }
-    }
 }
 
 // --- ISSUES ---
