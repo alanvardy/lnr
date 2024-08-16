@@ -2,17 +2,18 @@ extern crate clap;
 #[cfg(test)]
 extern crate matches;
 
+pub mod config;
+pub mod issue;
+pub mod request;
+pub mod team;
+pub mod template;
+pub mod viewer;
+
 mod color;
-mod config;
 mod git;
 mod input;
-mod issue;
 mod priority;
-mod request;
-mod team;
-mod template;
 mod test;
-mod viewer;
 
 use clap::{Parser, Subcommand};
 use colored::*;
