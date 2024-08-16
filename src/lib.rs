@@ -226,27 +226,27 @@ pub struct TemplateEvaluate {
 pub struct IssueCreate {
     #[arg(short, long)]
     /// Title for issue
-    title: Option<String>,
+    pub title: Option<String>,
 
     #[arg(short, long)]
     /// Description for issue
-    description: Option<String>,
+    pub description: Option<String>,
 
     #[arg(short = 'r', long)]
     /// 1 (Low), 2 (Normal), 3 (High), or 4 (Urgent)
-    priority: Option<u8>,
+    pub priority: Option<u8>,
 
     #[arg(short = 'e', long)]
     /// Team name
-    team: Option<String>,
+    pub team: Option<String>,
 
     #[arg(short, long, default_value_t = false)]
     /// Do not prompt for a project
-    noproject: bool,
+    pub noproject: bool,
 
     #[arg(short, long)]
     /// i.e. Backlog or Todo
-    state: Option<String>,
+    pub state: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
