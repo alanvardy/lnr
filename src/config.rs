@@ -22,11 +22,22 @@ pub struct Config {
 }
 
 impl Config {
+    /// Adds an organization and its corresponding token to the configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - A `String` representing the name of the organization.
+    /// * `token` - A `String` representing the token associated with the organization.
     pub fn add_organization(&mut self, name: String, token: String) {
         let projects = &mut self.organizations;
         projects.insert(name, token);
     }
 
+    /// Creates a new configuration file on the filesystem based on the current configuration.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the `Config` if successful, or a `String` with an error message.
     pub fn create(self) -> Result<Config, String> {
         let json = json!(self).to_string();
         let mut file = fs::File::create(&self.path).or(Err("Could not create file"))?;
@@ -36,6 +47,15 @@ impl Config {
         Ok(self)
     }
 
+    /// Loads a configuration from a specified file path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - A `&str` representing the path to the configuration file.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the `Config` if successful, or a `String` with an error message.
     pub fn load(path: &str) -> Result<Config, String> {
         let mut json = String::new();
 
@@ -47,6 +67,11 @@ impl Config {
         serde_json::from_str::<Config>(&json).map_err(|_| format!("Could not parse JSON:\n{json}"))
     }
 
+    /// Creates a new `Config` instance with default values.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the `Config` if successful, or a `String` with an error message.
     pub fn new() -> Result<Config, String> {
         let organizations: HashMap<String, String> = HashMap::new();
         Ok(Config {
@@ -59,14 +84,33 @@ impl Config {
         })
     }
 
+    /// Removes an organization from the configuration by its name.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - A `&String` representing the name of the organization to be removed.
     pub fn remove_organization(&mut self, name: &String) {
         self.organizations.remove(name);
     }
 
+    /// Retrieves a list of organization names currently in the configuration.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Vec<String>` containing the names of all organizations.
     pub fn organization_names(&self) -> Vec<String> {
         self.organizations.clone().into_keys().collect()
     }
 
+    /// Retrieves the token associated with a given organization name.
+    ///
+    /// # Arguments
+    ///
+    /// * `organization_name` - A `&String` representing the name of the organization.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the `String` token if successful, or a `String` with an error message.
     pub fn token(&self, organization_name: &String) -> Result<String, String> {
         let maybe_org = self
             .organizations
@@ -80,6 +124,11 @@ impl Config {
         }
     }
 
+    /// Saves the current configuration to the file specified by `path`.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a confirmation `String` if successful, or a `String` with an error message.
     pub fn save(&mut self) -> std::result::Result<String, String> {
         let json = json!(self);
         let string = serde_json::to_string_pretty(&json).or(Err("Could not convert to JSON"))?;
@@ -97,6 +146,15 @@ impl Config {
     }
 }
 
+/// Retrieves the configuration from the specified path or creates a new one if it does not exist.
+///
+/// # Arguments
+///
+/// * `config_path` - An `Option<String>` representing the path to the configuration file. If `None`, a default path is used.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `Config` if successful, or a `String` with an error message.
 pub fn get_or_create(config_path: Option<String>) -> Result<Config, String> {
     let path: String = match config_path {
         None => generate_path()?,
@@ -109,6 +167,11 @@ pub fn get_or_create(config_path: Option<String>) -> Result<Config, String> {
     }
 }
 
+/// Generates the path to the configuration file, either in the default location or a temporary test directory.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `String` path if successful, or a `String` with an error message.
 pub fn generate_path() -> Result<String, String> {
     let config_directory = dirs::config_dir()
         .ok_or_else(|| String::from("Could not find config directory"))?
@@ -123,6 +186,7 @@ pub fn generate_path() -> Result<String, String> {
         Ok(format!("{config_directory}/lnr.cfg"))
     }
 }
+
 
 #[cfg(test)]
 mod tests {

@@ -46,30 +46,46 @@ const ISSUE_CREATE_DOC: &str = "mutation (
                 ";
 
 #[derive(Deserialize)]
+/// Represents the structure of a template used to create issues.
 struct Template {
+    /// The parent issue details.
     parent: ParentIssue,
+    /// An optional list of child issues.
     children: Option<Vec<ChildIssue>>,
+    /// A map of variables to be substituted in the template.
     variables: HashMap<String, String>,
 }
 
 #[derive(Deserialize)]
+/// Represents the details of a parent issue.
 struct ParentIssue {
+    /// The title of the parent issue.
     title: String,
+    /// An optional description of the parent issue.
     description: Option<String>,
 }
+
 #[derive(Deserialize)]
+/// Represents the details of a child issue.
 struct ChildIssue {
+    /// The title of the child issue.
     title: String,
+    /// An optional description of the child issue.
     description: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+/// Represents the response structure when creating an issue.
 struct IssueCreateResponse {
+    /// The data returned from the issue creation.
     data: Option<Data>,
 }
+
 #[derive(Deserialize, Serialize, Debug)]
 #[allow(non_snake_case)]
+/// Represents the data structure containing the created issue details.
 struct Data {
+    /// The created issue details.
     issueCreate: IssueCreate,
 }
 
@@ -79,13 +95,30 @@ struct IssueCreate {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+/// Represents the details of a created issue.
 struct Issue {
+    /// The unique identifier of the created issue.
     id: String,
+    /// The URL of the created issue.
     url: String,
 }
 
-/// We want to support a file path or a directory
-#[allow(clippy::too_many_arguments)]
+/// Evaluates the specified path, creating issues based on the provided template.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `Config` containing the necessary configurations.
+/// * `token` - A string slice representing the authentication token.
+/// * `team` - A reference to the `Team` where the issues will be created.
+/// * `project` - An optional reference to the `Project` where the issues will be associated.
+/// * `viewer` - A reference to the `Viewer` who is creating the issues.
+/// * `path` - A string reference representing the path to the template file or directory.
+/// * `state` - A reference to the `State` in which the issues will be created.
+/// * `priority` - A reference to the `Priority` level of the issues.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a `String` message if successful, or an error message as a `String`.
 pub fn evaluate(
     config: &Config,
     token: &str,
@@ -119,7 +152,22 @@ pub fn evaluate(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Creates issues based on the provided template file.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `Config` containing the necessary configurations.
+/// * `token` - A string slice representing the authentication token.
+/// * `team` - A reference to the `Team` where the issues will be created.
+/// * `viewer` - A reference to the `Viewer` who is creating the issues.
+/// * `project` - An optional reference to the `Project` where the issues will be associated.
+/// * `path` - A string reference representing the path to the template file.
+/// * `state` - A reference to the `State` in which the issues will be created.
+/// * `priority` - A reference to the `Priority` level of the issues.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a `String` message if successful, or an error message as a `String`.
 fn create_issues(
     config: &Config,
     token: &str,
