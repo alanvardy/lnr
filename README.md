@@ -1,5 +1,7 @@
 # lnr
 
+Note: This crate requires the `LINEAR_API_KEY` env variable to be set. It will not work without it.
+
 <!--toc:start-->
 - [lnr](#lnr)
   - [Working with issues](#working-with-issues)

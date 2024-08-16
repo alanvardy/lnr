@@ -286,7 +286,7 @@ fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
         state,
     } = args;
     let config = fetch_config(&cli)?;
-    let token = fetch_token(&cli, &config)?;
+    let token = fetch_token()?;
     let viewer = viewer::get_viewer(&config, &token)?;
     let team = viewer::team(&viewer, team)?;
     let state = get_state(&config, &token, &team, state)?;
@@ -314,7 +314,7 @@ fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
 fn issue_view(cli: Cli, args: &IssueView) -> Result<String, String> {
     let IssueView { select } = args;
     let config = fetch_config(&cli)?;
-    let token = fetch_token(&cli, &config)?;
+    let token = fetch_token()?;
     if *select {
         issue::view(&config, &token, None)
     } else {
@@ -325,7 +325,7 @@ fn issue_view(cli: Cli, args: &IssueView) -> Result<String, String> {
 
 fn issue_edit(cli: Cli, _args: &IssueEdit) -> Result<String, String> {
     let config = fetch_config(&cli)?;
-    let token = fetch_token(&cli, &config)?;
+    let token = fetch_token()?;
 
     let branch = git::get_branch()?;
     issue::edit(&config, &token, branch)
@@ -338,7 +338,7 @@ fn issue_list(cli: Cli, args: &IssueList) -> Result<String, String> {
         noproject,
     } = args;
     let config = fetch_config(&cli)?;
-    let token = fetch_token(&cli, &config)?;
+    let token = fetch_token()?;
 
     let viewer = viewer::get_viewer(&config, &token)?;
 
@@ -406,7 +406,7 @@ fn template_evaluate(cli: Cli, args: &TemplateEvaluate) -> Result<String, String
         state,
     } = args;
     let config = fetch_config(&cli)?;
-    let token = fetch_token(&cli, &config)?;
+    let token = fetch_token()?;
     let viewer = viewer::get_viewer(&config, &token)?;
     let team = viewer::team(&viewer, team)?;
     let priority = get_priority(priority)?;
@@ -429,24 +429,12 @@ fn fetch_config(cli: &Cli) -> Result<Config, String> {
     config::get_or_create(cli.config.clone())
 }
 
-fn fetch_token(cli: &Cli, config: &Config) -> Result<String, String> {
-    let org_name = cli.org.clone();
-    match org_name {
-        Some(string) => config.token(&string),
-        None => {
-            let mut org_names = config.organization_names();
-            org_names.sort();
-
-            if org_names.is_empty() {
-                let command = color::cyan_string("org add");
-                Err(format!("Add an organization with {}", command))
-            } else if org_names.len() == 1 {
-                config.token(org_names.first().unwrap())
-            } else {
-                let org_name = input::select("Select an organization", org_names, None)?;
-                config.token(&org_name)
-            }
-        }
+fn fetch_token() -> Result<String, String> {
+    // grab the env variable called LINEAR_API_KEY and return it
+    if let Ok(token) = std::env::var("LINEAR_API_KEY") {
+        return Ok(token);
+    } else {
+        Err("LINEAR_API_KEY not found in environment".to_string())
     }
 }
 
@@ -541,4 +529,47 @@ fn verify_cmd() {
     // Mostly checks that it is not going to throw an exception because of conflicting short arguments
     Cli::try_parse().err();
     Cli::command().debug_assert();
+}
+
+#[test]
+fn test_api_access() {
+    let linear_api = LinearClient::new(None, "Gitar");
+
+    let args = IssueList {
+        team: Some("Gitar".to_string()),
+        noteam: true,
+        noproject: true,
+    };
+
+    let issues = linear_api.issue_list(&args).unwrap();
+
+    for issue in issues.lines() {
+        println!("{}", issue);
+    }
+
+    assert!(true);
+}
+
+#[test]
+fn test_api_creation() {
+    let linear_api = LinearClient::new(None, "Gitar");
+    let args = IssueCreate {
+        title: Some("Test Issue KAKAPIO".to_string()),
+        description: Some("This is a test issue made by Kakapio's code".to_string()),
+        priority: Some(1),
+        team: Some("Gitar".to_string()),
+        noproject: true,
+        state: Some("Backlog".to_string()),
+    };
+
+    match linear_api.issue_create(&args) {
+        Ok(out) => {
+            println!("{}", out);
+            assert!(true);
+        }
+        Err(e) => {
+            println!("{}", e);
+            assert!(false);
+        }
+    };
 }
