@@ -36,6 +36,17 @@ pub struct Gql {
 }
 
 impl Gql {
+    /// Creates a new `Gql` instance for executing GraphQL queries.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - A reference to the `Config` containing the necessary configurations.
+    /// * `token` - A string slice representing the authentication token.
+    /// * `query` - A string slice representing the GraphQL query to be executed.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Gql` instance initialized with the provided parameters.
     pub fn new(config: &Config, token: &str, query: &str) -> Gql {
         Gql {
             config: config.clone(),
@@ -45,29 +56,73 @@ impl Gql {
         }
     }
 
+    /// Inserts a set of variables into the `Gql` instance for use in the GraphQL query.
+    ///
+    /// # Arguments
+    ///
+    /// * `variables` - A `HashMap<String, Value>` containing the variables to be used in the GraphQL query.
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated `Gql` instance with the provided variables.
     pub fn put_variables(mut self, variables: HashMap<String, Value>) -> Gql {
         self.variables = variables;
         self
     }
 
+    /// Inserts a string variable into the `Gql` instance for use in the GraphQL query.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A string slice representing the key for the variable.
+    /// * `value` - A `String` representing the value of the variable.
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated `Gql` instance with the provided variable.
     pub fn put_string(mut self, key: &str, value: String) -> Gql {
         self.variables.insert(key.to_string(), Value::String(value));
-
         self
     }
+
+    /// Inserts an integer variable into the `Gql` instance for use in the GraphQL query.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A string slice representing the key for the variable.
+    /// * `value` - A `u8` representing the value of the variable.
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated `Gql` instance with the provided variable.
     pub fn put_integer(mut self, key: &str, value: u8) -> Gql {
         self.variables.insert(key.to_string(), json!(value));
-
         self
     }
+
+    /// Conditionally inserts a string variable into the `Gql` instance if the value is `Some`.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A string slice representing the key for the variable.
+    /// * `value` - An `Option<String>` representing the value of the variable. If `None`, the variable is not inserted.
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated `Gql` instance with the provided variable if it exists.
     pub fn maybe_put_string(mut self, key: &str, value: Option<String>) -> Gql {
         if let Some(value) = value {
             self.variables.insert(key.to_string(), Value::String(value));
         }
-
         self
     }
 
+    /// Executes the GraphQL query with the current configuration and variables.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the response as a `String` if successful,
+    /// or an error message as a `String`.
     pub fn run(self) -> Result<String, String> {
         let url = get_base_url(&self.config);
 
@@ -100,7 +155,12 @@ impl Gql {
     }
 }
 
-/// Get latest version number from Cargo.io
+/// Retrieves the latest version number of the `lnr` crate from Cargo.io.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the latest version number as a `String` if successful,
+/// or an error message as a `String`.
 pub fn get_latest_version() -> Result<String, String> {
     let request_url = format!("{CARGO_URL}{VERSIONS_URL}");
 

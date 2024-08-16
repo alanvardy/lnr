@@ -420,6 +420,24 @@ impl Display for Issue {
     }
 }
 #[allow(clippy::too_many_arguments)]
+/// Creates a new issue in the system with the given parameters.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `Config` containing the necessary configurations.
+/// * `token` - A string slice representing the authentication token.
+/// * `title` - A `String` representing the title of the issue.
+/// * `description` - A `String` representing the description of the issue.
+/// * `team` - The `Team` to which the issue belongs.
+/// * `project` - An optional `Project` to which the issue might be associated.
+/// * `state` - The `State` indicating the current state of the issue.
+/// * `assignee_id` - A `String` representing the ID of the assignee.
+/// * `priority` - The `Priority` level of the issue.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the URL and branch name of the created issue as a `String` if successful,
+/// or an error message as a `String`.
 pub fn create(
     config: &Config,
     token: &str,
@@ -449,6 +467,20 @@ pub fn create(
     Ok(format!("{url}\n{branch_name}"))
 }
 
+/// Lists all issues for the given parameters, filtering by assignee, team, and project.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `Config` containing the necessary configurations.
+/// * `token` - A string slice representing the authentication token.
+/// * `assignee_id` - An optional `String` representing the ID of the assignee.
+/// * `team` - An optional `Team` to filter the issues.
+/// * `project` - An optional `Project` to filter the issues.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a formatted string of all issues if successful,
+/// or an error message as a `String`.
 pub fn list(
     config: &Config,
     token: &str,
@@ -503,6 +535,18 @@ fn get_issues(
     issue_list_response(response)
 }
 
+/// Displays the details of an issue based on the given branch or allows selection from a list of issues.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `Config` containing the necessary configurations.
+/// * `token` - A string slice representing the authentication token.
+/// * `branch` - An optional `String` representing the branch name to filter the issue.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the formatted issue details as a `String` if successful,
+/// or an error message as a `String`.
 pub fn view(config: &Config, token: &str, branch: Option<String>) -> Result<String, String> {
     if let Some(branch) = branch {
         let response = request::Gql::new(config, token, ISSUE_BRANCH_VIEW_DOC)
@@ -527,12 +571,24 @@ pub fn view(config: &Config, token: &str, branch: Option<String>) -> Result<Stri
     }
 }
 
+/// Edits the description of an issue identified by the given branch name.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `Config` containing the necessary configurations.
+/// * `token` - A string slice representing the authentication token.
+/// * `branch` - A `String` representing the branch name of the issue.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the URL of the updated issue as a `String` if successful,
+/// or an error message as a `String`.
 pub fn edit(config: &Config, token: &str, branch: String) -> Result<String, String> {
     let response = request::Gql::new(config, token, ISSUE_BRANCH_VIEW_DOC)
         .put_string("branchName", branch.clone())
         .run()?;
     let issue = issue_branch_view_response(response, &branch)?;
-    // Stops wierd spinner output from rolling into the input text
+    // Stops weird spinner output from rolling into the input text
     println!();
     let description = input::editor(
         "Enter updated description",
