@@ -28,7 +28,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = "Alan Vardy <alan@vardy.cc>";
 const ABOUT: &str = "A tiny unofficial Linear client";
 
-/// Wrapper around `Cli` to provide a more ergonomic interface.
+/// Wrapper around the inner `Cli` functionality to provide a more ergonomic interface.
 pub struct LinearClient {
     cli: Cli,
 }
@@ -119,7 +119,7 @@ impl LinearClient {
 #[command(about = ABOUT, long_about = None)]
 #[command(author = AUTHOR, version)]
 #[command(arg_required_else_help(true))]
-pub struct Cli {
+struct Cli {
     #[arg(short, long)]
     /// Absolute path of configuration. Defaults to $XDG_CONFIG_HOME/lnr.cfg
     config: Option<String>,
