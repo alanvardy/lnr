@@ -201,9 +201,5 @@ fn maybe_stop_spinner(spinner: Option<Spinner>) {
 }
 
 fn get_base_url(config: &Config) -> String {
-    if cfg!(test) {
-        config.mock_url.clone().expect("Mock URL not set")
-    } else {
-        LINEAR_URL.to_string()
-    }
+    LINEAR_URL.to_string()
 }
