@@ -124,7 +124,7 @@ impl Gql {
     /// Returns a `Result` containing the response as a `String` if successful,
     /// or an error message as a `String`.
     pub fn run(self) -> Result<String, String> {
-        let url = get_base_url(&self.config);
+        let url = get_base_url();
 
         let body = json!({"query": self.query, "variables": self.variables});
 
@@ -200,6 +200,6 @@ fn maybe_stop_spinner(spinner: Option<Spinner>) {
     };
 }
 
-fn get_base_url(config: &Config) -> String {
+fn get_base_url() -> String {
     LINEAR_URL.to_string()
 }
