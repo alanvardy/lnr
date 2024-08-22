@@ -29,6 +29,7 @@ const AUTHOR: &str = "Alan Vardy <alan@vardy.cc>";
 const ABOUT: &str = "A tiny unofficial Linear client";
 
 /// Wrapper around the inner `Cli` functionality to provide a more ergonomic interface.
+#[derive(Clone)]
 pub struct LinearClient {
     cli: Cli,
 }
