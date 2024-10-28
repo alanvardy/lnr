@@ -29,7 +29,7 @@ rand = "0.8.5"
 pretty_assertions = "1.4.1"
 toml = "0.8.19"
 walkdir = "2.3.3"
-handlebars = "6.1.0"
+handlebars = "6.2.0"
 
 [dev-dependencies]
 mockito = "1.2.0"
