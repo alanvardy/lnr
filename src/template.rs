@@ -163,7 +163,7 @@ fn create_issues(
 
     let Issue { id, url } = extract_id_from_response(response)?;
 
-    println!("- [{}] {}", id, url);
+    println!("- [{id}] {url}");
 
     for child in children.unwrap_or_default().iter() {
         let title = fill_in_variables(child.title.clone(), variables.clone())?;
@@ -181,7 +181,7 @@ fn create_issues(
             .maybe_put_string("projectId", project_id.clone())
             .run()?;
         let Issue { id, url } = extract_id_from_response(response)?;
-        println!("  - [{}] {}", id, url);
+        println!("  - [{id}] {url}");
     }
     Ok("Done".to_string())
 }

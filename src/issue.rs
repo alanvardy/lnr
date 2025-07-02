@@ -348,7 +348,7 @@ impl Issue {
             }
 
             Format::List => {
-                let id = format!("{: >10}", id);
+                let id = format!("{id: >10}");
                 format!("- {id} | {title}\n             | {state}{child_tickets}\n")
             }
         }
@@ -407,7 +407,7 @@ impl Display for Issue {
         } else {
             String::new()
         };
-        let id = format!("{: >10}", id);
+        let id = format!("{id: >10}");
 
         if self.is_parent() {
             write!(

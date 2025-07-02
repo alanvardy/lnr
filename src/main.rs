@@ -329,7 +329,7 @@ fn org_remove(cli: Cli, _args: &OrgRemove) -> Result<String, String> {
     let org_names = config.organization_names();
     if org_names.is_empty() {
         let command = color::cyan_string("org add");
-        Err(format!("Add an organization with {}", command))
+        Err(format!("Add an organization with {command}"))
     } else {
         let org_name = input::select("Select an organization", org_names, None)?;
         config.remove_organization(&org_name);
@@ -381,7 +381,7 @@ fn fetch_token(cli: &Cli, config: &Config) -> Result<String, String> {
 
             if org_names.is_empty() {
                 let command = color::cyan_string("org add");
-                Err(format!("Add an organization with {}", command))
+                Err(format!("Add an organization with {command}"))
             } else if org_names.len() == 1 {
                 config.token(org_names.first().unwrap())
             } else {
