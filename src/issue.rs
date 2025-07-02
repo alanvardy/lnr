@@ -67,6 +67,7 @@ const ISSUE_UPDATE_DOC: &str = "mutation (
                         state {
                             id
                             name
+                            position
                         }
                     }
                     }
@@ -97,12 +98,14 @@ const ISSUE_LIST_DOC: &str = "query (
                                 state {
                                     id
                                     name
+                                    position
                                 }
                             }
                         }
                         state {
                             id
                             name
+                            position
                         }
                     }
                   }
