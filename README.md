@@ -123,13 +123,6 @@ Install `lnr`
 cargo install lnr
 ```
 
-### AUR (Arch-based Linux)
-
-```bash
-# Use yay or another AUR helper
-yay lnr-bin
-```
-
 ### GitHub (Linux, Mac, and Windows)
 
 [Install Rust](https://www.rust-lang.org/tools/install)
