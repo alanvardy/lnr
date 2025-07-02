@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2025-07-02 v0.2.1
+
 - Fix bug where state position was not always queried
 
 ## 2024-05-06 v0.2.0
