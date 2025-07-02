@@ -93,8 +93,7 @@ impl Gql {
                 ========
                 body: {body}
                 ========
-                Error: {:?}",
-                response
+                Error: {response:?}"
             ))
         }
     }
