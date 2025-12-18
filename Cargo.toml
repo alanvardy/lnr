@@ -27,7 +27,7 @@ spinners = "4.1.0"
 inquire = { version = "0.9.1", features = ["editor"] }
 rand = "0.8.5"
 pretty_assertions = "1.4.1"
-toml = "0.9.9"
+toml = "0.9.10"
 walkdir = "2.3.3"
 handlebars = "6.3.2"
 
