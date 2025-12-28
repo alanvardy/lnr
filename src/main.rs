@@ -251,6 +251,19 @@ fn issue_create(cli: Cli, args: &IssueCreate) -> Result<String, String> {
         viewer.id,
         priority,
     )
+    .map(|(branch_name, url)| {
+        match git::create_branch(branch_name.clone()) {
+            Ok(_) => {
+                let success_msg = format!("✓ Created git branch: {}", branch_name);
+                eprintln!("{}", success_msg.green());
+            }
+            Err(e) => {
+                let warning_msg = format!("⚠ Could not create git branch '{}': {}", branch_name, e);
+                eprintln!("{}", warning_msg.yellow());
+            }
+        }
+        url
+    })
 }
 
 fn issue_view(cli: Cli, args: &IssueView) -> Result<String, String> {
