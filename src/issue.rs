@@ -433,7 +433,7 @@ pub fn create(
     state: State,
     assignee_id: String,
     priority: Priority,
-) -> Result<String, String> {
+) -> Result<(String, String), String> {
     let priority = priority::priority_to_int(&priority);
     let response = request::Gql::new(config, token, ISSUE_CREATE_DOC)
         .put_string("title", title)
@@ -449,7 +449,7 @@ pub fn create(
         url, branch_name, ..
     } = issue_create_response(response)?;
 
-    Ok(format!("{url}\n{branch_name}"))
+    Ok((branch_name.clone(), format!("{url}\n{branch_name}")))
 }
 
 pub fn list(
@@ -702,7 +702,10 @@ mod tests {
         );
         assert_eq!(
             result,
-            Ok("https://linear.app/vardy/issue/BE-3354/test\nbe-3354-test".to_string())
+            Ok((
+                "be-3354-test".to_string(),
+                "https://linear.app/vardy/issue/BE-3354/test\nbe-3354-test".to_string()
+            ))
         );
         mock.assert();
     }
